@@ -739,6 +739,52 @@ back/
 - `/api/auth/csrf/` выставляет `csrftoken`;
 - тесты проходят.
 
+### Этап 13. Frontend dictionary API
+
+Статус: выполнен.
+
+Задачи:
+
+- Добавить read-only JSON endpoints для справочников, которые нужны форме
+  записи клиента.
+- Добавить endpoint текущего customer profile.
+- Добавить endpoint автомобилей текущего клиента с учетом текущей MVP-модели
+  `Customer.car`.
+- Сохранить публичный доступ к безопасным справочникам.
+- Покрыть endpoints тестами.
+
+Реализовано:
+
+- Добавлены endpoints:
+  - `GET /api/cars/brands/`
+  - `GET /api/cars/models/`
+  - `GET /api/cars/types/`
+  - `GET /api/personal/stations/`
+  - `GET /api/car-wash/wash-types/`
+  - `GET /api/customers/me/`
+  - `GET /api/customers/cars/`
+- Публичные справочники возвращают compact regular JSON под ключом `data`.
+- `GET /api/customers/me/` и `GET /api/customers/cars/` требуют
+  authentication.
+- Для `manager` поддержан query param `customer` в
+  `GET /api/customers/cars/?customer=...`.
+- Добавлены тесты публичных справочников, customer profile, customer cars,
+  отсутствующего customer profile и manager lookup.
+
+Результат:
+
+- frontend booking flow может загрузить станции, типы авто, типы мойки и
+  автомобили клиента без обращения к Django admin;
+- текущая backend-модель с одним автомобилем клиента обернута в API-список,
+  чтобы будущая миграция на несколько автомобилей не ломала frontend contract.
+
+Критерии готовности:
+
+- публичные dictionary endpoints доступны без login;
+- customer endpoints возвращают данные текущего пользователя;
+- manager может запросить автомобили конкретного customer;
+- тесты проходят.
+
 ## 11. Рекомендуемый порядок реализации MVP
 
 1. `WashBox`, `WasherShift`, `Booking`, `BookingAssignment`, `ResourceBlock`.
@@ -753,6 +799,7 @@ back/
 10. Production-ready конфигурация.
 11. Переименование `WashCoast` в `WashCost`.
 12. SPA session auth API.
+13. Frontend dictionary API.
 
 ## 12. Риски и решения
 

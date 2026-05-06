@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from back.config import database_config, env_bool, env_int, env_list
-from cars.models import CarType
+from cars.models import CarBrand, CarModel, CarType
 from customer.models import Car, Customer
 from personal.models import City, District, Washer, WashStation
 from car_wash.models import (
@@ -292,6 +292,113 @@ class AuthApiTests(TestCase):
 
         me_response = self.client.get(reverse("api:auth:me"))
         self.assertFalse(me_response.json()["data"]["is_authenticated"])
+
+
+class DictionaryApiTests(TestCase):
+    def setUp(self):
+        self.customer_user = User.objects.create_user(
+            username="anna",
+            password="password",
+        )
+        self.manager_user = User.objects.create_user(
+            username="manager",
+            password="password",
+        )
+        self._add_user_to_group(self.customer_user, CUSTOMER_GROUP)
+        self._add_user_to_group(self.manager_user, MANAGER_GROUP)
+
+        self.brand = CarBrand.objects.create(name="Lada")
+        self.model = CarModel.objects.create(name="Vesta")
+        self.car_type = CarType.objects.create(
+            name="Седан",
+            description="Легковой автомобиль",
+        )
+        self.car = Car.objects.create(number="A001AA", carType=self.car_type)
+        self.customer = Customer.objects.create(
+            user=self.customer_user,
+            name="Анна",
+            phoneNumber="+79990000000",
+            car=self.car,
+        )
+
+        city = City.objects.create(name="Москва")
+        district = District.objects.create(name="Центральный")
+        self.station = WashStation.objects.create(
+            name="Мойка 1",
+            city=city,
+            district=district,
+            address="Тестовая улица, 1",
+        )
+        self.wash_type = WashType.objects.create(
+            name="Комплекс",
+            description="Комплексная мойка",
+        )
+
+    def test_car_dictionary_endpoints_are_public(self):
+        type_response = self.client.get(reverse("api:cars:type-list"))
+        brand_response = self.client.get(reverse("api:cars:brand-list"))
+        model_response = self.client.get(reverse("api:cars:model-list"))
+
+        self.assertEqual(type_response.status_code, 200)
+        self.assertEqual(brand_response.status_code, 200)
+        self.assertEqual(model_response.status_code, 200)
+        self.assertEqual(type_response.json()["data"][0]["name"], "Седан")
+        self.assertEqual(brand_response.json()["data"][0]["name"], "Lada")
+        self.assertEqual(model_response.json()["data"][0]["name"], "Vesta")
+
+    def test_station_dictionary_endpoint_is_public(self):
+        response = self.client.get(reverse("api:personal:station-list"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"][0]
+        self.assertEqual(payload["name"], "Мойка 1")
+        self.assertEqual(payload["address"], "Тестовая улица, 1")
+        self.assertEqual(payload["city"]["name"], "Москва")
+        self.assertEqual(payload["district"]["name"], "Центральный")
+
+    def test_wash_type_dictionary_endpoint_is_public(self):
+        response = self.client.get(reverse("api:car_wash:wash-type-list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"][0]["name"], "Комплекс")
+
+    def test_customer_profile_and_cars_return_current_customer(self):
+        self.client.force_login(self.customer_user)
+
+        profile_response = self.client.get(reverse("api:customer:me"))
+        cars_response = self.client.get(reverse("api:customer:car-list"))
+
+        self.assertEqual(profile_response.status_code, 200)
+        self.assertEqual(cars_response.status_code, 200)
+        self.assertEqual(profile_response.json()["data"]["id"], self.customer.id)
+        self.assertEqual(profile_response.json()["data"]["car"]["number"], "A001AA")
+        self.assertEqual(cars_response.json()["data"][0]["number"], "A001AA")
+
+    def test_customer_profile_returns_empty_payload_without_profile(self):
+        user = User.objects.create_user(username="no-profile", password="password")
+        self.client.force_login(user)
+
+        profile_response = self.client.get(reverse("api:customer:me"))
+        cars_response = self.client.get(reverse("api:customer:car-list"))
+
+        self.assertEqual(profile_response.status_code, 200)
+        self.assertIsNone(profile_response.json()["data"])
+        self.assertEqual(cars_response.json()["data"], [])
+
+    def test_manager_can_read_customer_cars_by_query_param(self):
+        self.client.force_login(self.manager_user)
+
+        response = self.client.get(
+            reverse("api:customer:car-list"),
+            {"customer": self.customer.id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"][0]["id"], self.car.id)
+
+    def _add_user_to_group(self, user, group_name):
+        group, _ = Group.objects.get_or_create(name=group_name)
+        user.groups.add(group)
 
 
 class PricingServiceTests(TestCase):

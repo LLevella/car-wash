@@ -109,6 +109,13 @@ Django templates. На production его можно отдавать через 
 - `POST /api/auth/login/`
 - `POST /api/auth/logout/`
 - `GET /api/auth/me/`
+- `GET /api/cars/brands/`
+- `GET /api/cars/models/`
+- `GET /api/cars/types/`
+- `GET /api/customers/me/`
+- `GET /api/customers/cars/`
+- `GET /api/personal/stations/`
+- `GET /api/car-wash/wash-types/`
 - `GET /api/car-wash/availability/`
 - `GET|POST /api/car-wash/bookings/`
 - `PATCH /api/car-wash/bookings/{id}/cancel/`
@@ -120,9 +127,6 @@ Django templates. На production его можно отдавать через 
 - `PATCH /api/manager/bookings/{id}/status/`
 - `GET|POST /api/manager/shifts/`
 - `GET|POST /api/manager/resource-blocks/`
-- dictionary routes under `/api/cars/`, `/api/customers/`, `/api/personal/`,
-  `/api/car-wash/`.
-
 Оставшиеся backend-доработки для полноценной SPA:
 
 - единый формат ошибок для форм: field errors + general detail.
@@ -189,7 +193,8 @@ Django templates. На production его можно отдавать через 
 
 Backend prerequisites:
 
-- auth endpoints из раздела 5 уже добавлены и покрыты backend tests;
+- auth endpoints и dictionary endpoints из раздела 5 уже добавлены и покрыты
+  backend tests;
 - для separate frontend host настроить CORS и CSRF trusted origins.
 
 Критерии готовности:

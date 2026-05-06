@@ -8,12 +8,14 @@ from car_wash.views import (
     BookingListCreateView,
     BookingRescheduleView,
     BookingStatusView,
+    WashTypeListView,
 )
 
 
 app_name = "car_wash"
 
 urlpatterns = [
+    path("wash-types/", WashTypeListView.as_view(), name="wash-type-list"),
     path("availability/", AvailabilityView.as_view(), name="availability"),
     path("bookings/", BookingListCreateView.as_view(), name="booking-list"),
     path(

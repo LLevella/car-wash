@@ -29,6 +29,23 @@ from car_wash.services.booking import (
 from car_wash.services.pricing import PricingConfigurationError
 
 
+class WashTypeListView(APIView):
+    def get(self, request):
+        wash_types = WashType.objects.order_by("name")
+        return Response(
+            {
+                "data": [
+                    {
+                        "id": wash_type.id,
+                        "name": wash_type.name,
+                        "description": wash_type.description,
+                    }
+                    for wash_type in wash_types
+                ]
+            }
+        )
+
+
 class AvailabilityView(APIView):
     def get(self, request):
         station_id = request.query_params.get("station")
