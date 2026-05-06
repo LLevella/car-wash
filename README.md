@@ -38,6 +38,11 @@ The full target architecture and development plan are documented in
 
 ```text
 car-wash/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml      # GitHub Actions CI/CD workflow
+├── .coveragerc            # coverage settings for CI and local checks
+├── .gitignore             # local Python, coverage, and editor artifacts
 ├── back/                  # Django project
 │   ├── back/              # settings, urls, wsgi
 │   ├── car_wash/          # bays, wash types, prices, bookings
@@ -186,11 +191,42 @@ cd back
 python manage.py test
 ```
 
+Coverage check:
+
+```bash
+pip install "coverage>=7,<8"
+cd back
+coverage run --rcfile=../.coveragerc manage.py test
+coverage report --rcfile=../.coveragerc
+```
+
+### CI/CD
+
+GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
+
+- Runs on pushes and pull requests to `master` and `main`, and can be started
+  manually with `workflow_dispatch`.
+- Uses Python 3.11, installs project dependencies, checks that migrations are
+  up to date, applies migrations, and runs Django tests with coverage.
+- Coverage must stay at or above 80%.
+- The deploy job runs only after successful CI on pushes to `master` or `main`.
+  It is skipped until SSH deployment secrets are configured.
+
+Deployment secrets:
+
+- `DEPLOY_HOST` - server hostname or IP.
+- `DEPLOY_PORT` - optional SSH port, defaults to `22`.
+- `DEPLOY_USER` - SSH user.
+- `DEPLOY_KEY` - private SSH key.
+- `DEPLOY_PATH` - project path on the server for the default command.
+- `DEPLOY_COMMAND` - optional full remote deploy command. When omitted, the
+  workflow runs `cd $DEPLOY_PATH && git pull --ff-only && cd back && python manage.py migrate --noinput`.
+
 ### Development Status
 
-Stages 1-8 are complete: project setup, data model, pricing, availability,
-booking, the basic manager workspace, role-based access control, tests, and
-demo data. See
+Stages 1-9 are complete: project setup, data model, pricing, availability,
+booking, the basic manager workspace, role-based access control, tests,
+demo data, and CI/CD. See
 [docs/implementation-plan.md](docs/implementation-plan.md) for details and
 acceptance criteria.
 
@@ -228,6 +264,11 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 
 ```text
 car-wash/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml      # GitHub Actions CI/CD workflow
+├── .coveragerc            # настройки coverage для CI и локальных проверок
+├── .gitignore             # локальные Python, coverage и editor-артефакты
 ├── back/                  # Django-проект
 │   ├── back/              # settings, urls, wsgi
 │   ├── car_wash/          # боксы, типы мойки, цены, бронирования
@@ -377,9 +418,41 @@ cd back
 python manage.py test
 ```
 
+Проверка покрытия:
+
+```bash
+pip install "coverage>=7,<8"
+cd back
+coverage run --rcfile=../.coveragerc manage.py test
+coverage report --rcfile=../.coveragerc
+```
+
+### CI/CD
+
+GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
+
+- Запускается на push и pull request в `master` и `main`, а также вручную через
+  `workflow_dispatch`.
+- Использует Python 3.11, устанавливает зависимости проекта, проверяет
+  актуальность миграций, применяет миграции и запускает Django-тесты с
+  coverage.
+- Покрытие должно быть не ниже 80%.
+- Deploy job запускается только после успешного CI на push в `master` или
+  `main`. Пока SSH secrets не настроены, деплой безопасно пропускается.
+
+Secrets для деплоя:
+
+- `DEPLOY_HOST` - hostname или IP сервера.
+- `DEPLOY_PORT` - опциональный SSH-порт, по умолчанию `22`.
+- `DEPLOY_USER` - SSH-пользователь.
+- `DEPLOY_KEY` - приватный SSH-ключ.
+- `DEPLOY_PATH` - путь к проекту на сервере для команды по умолчанию.
+- `DEPLOY_COMMAND` - опциональная полная команда деплоя на сервере. Если она
+  не задана, workflow выполнит `cd $DEPLOY_PATH && git pull --ff-only && cd back && python manage.py migrate --noinput`.
+
 ### Статус разработки
 
-Этапы 1-8 выполнены: подготовка проекта, модель данных, расчет цены,
+Этапы 1-9 выполнены: подготовка проекта, модель данных, расчет цены,
 доступность, бронирование, базовый кабинет руководителя, ролевой доступ,
-тесты и демо-данные. Подробности и критерии готовности - в
+тесты, демо-данные и CI/CD. Подробности и критерии готовности - в
 [docs/implementation-plan.md](docs/implementation-plan.md).
