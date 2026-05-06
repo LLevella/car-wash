@@ -27,12 +27,12 @@ The full target architecture and development plan are documented in
 
 ### Stack
 
-- Python 3
+- Python 3.9-3.11 recommended for Django 4.1.x
 - Django 4.1
 - Django REST Framework 3.14
 - djangorestframework-jsonapi 6.0
 - django-filter 22
-- SQLite for development; PostgreSQL is planned for production
+- SQLite for development; PostgreSQL is planned for production use
 
 ### Project Structure
 
@@ -51,12 +51,12 @@ car-wash/
 ├── docs/
 │   └── implementation-plan.md
 ├── requirements.txt
-└── car-wash-env/          # local virtual environment, not committed
+└── car-wash-env/          # legacy local virtual environment from the original project
 ```
 
 ### Setup
 
-Python 3.10+ is recommended.
+Python 3.9-3.11 is recommended for this Django 4.1.x project.
 
 ```bash
 # 1. Clone the repository and enter it
@@ -81,6 +81,9 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+If your checkout already contains an old `car-wash-env/`, treat it as a legacy
+artifact and create a fresh virtual environment for local work.
+
 After startup:
 
 - Admin: http://127.0.0.1:8000/admin/
@@ -97,6 +100,12 @@ Demo users:
 - `demo_customer` / `password`
 - `demo_manager` / `password`
 - `demo_admin` / `password`
+
+Local authentication:
+
+- Use `/admin/` or the DRF browsable API login for session authentication.
+- `demo_customer` can access customer booking endpoints.
+- `demo_manager` and `demo_admin` can access manager endpoints.
 
 ### API
 
@@ -139,8 +148,8 @@ GET    /api/manager/resource-blocks/
 POST   /api/manager/resource-blocks/
 ```
 
-MVP endpoints accept and return regular JSON. DRF JSON:API components remain
-enabled for future compatibility.
+Current endpoints accept and return regular JSON. DRF JSON:API components
+remain enabled for future compatibility.
 
 ### Service Layer
 
@@ -208,12 +217,12 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 
 ### Стек
 
-- Python 3
+- Python 3.9-3.11 рекомендуется для Django 4.1.x
 - Django 4.1
 - Django REST Framework 3.14
 - djangorestframework-jsonapi 6.0
 - django-filter 22
-- SQLite для разработки; PostgreSQL планируется для production
+- SQLite для разработки; PostgreSQL планируется для production-среды
 
 ### Структура проекта
 
@@ -232,12 +241,12 @@ car-wash/
 ├── docs/
 │   └── implementation-plan.md
 ├── requirements.txt
-└── car-wash-env/          # локальное виртуальное окружение, не коммитится
+└── car-wash-env/          # legacy-окружение из исходного проекта
 ```
 
 ### Установка и запуск
 
-Рекомендуется Python 3.10+.
+Для проекта на Django 4.1.x рекомендуется Python 3.9-3.11.
 
 ```bash
 # 1. Клонировать репозиторий и перейти в каталог
@@ -262,6 +271,9 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
+Если в checkout уже есть старый `car-wash-env/`, считайте его legacy-артефактом
+и создайте свежее виртуальное окружение для локальной работы.
+
 После запуска доступны:
 
 - Админка: http://127.0.0.1:8000/admin/
@@ -278,6 +290,12 @@ python manage.py seed_demo_data
 - `demo_customer` / `password`
 - `demo_manager` / `password`
 - `demo_admin` / `password`
+
+Локальная аутентификация:
+
+- Для session auth используйте `/admin/` или login в browsable API DRF.
+- `demo_customer` может работать с клиентскими endpoints бронирования.
+- `demo_manager` и `demo_admin` могут работать с manager endpoints.
 
 ### API
 
@@ -320,8 +338,8 @@ GET    /api/manager/resource-blocks/
 POST   /api/manager/resource-blocks/
 ```
 
-MVP endpoints принимают и отдают обычный JSON. JSON:API-компоненты DRF остаются
-подключенными для дальнейшей совместимости.
+Текущие endpoints принимают и отдают обычный JSON. JSON:API-компоненты DRF
+остаются подключенными для дальнейшей совместимости.
 
 ### Сервисный слой
 
