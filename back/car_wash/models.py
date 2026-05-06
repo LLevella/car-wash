@@ -35,7 +35,7 @@ class WashDuration(models.Model):
         verbose_name_plural = "Время мойки"
 
 
-class WashCoast (models.Model):
+class WashCost(models.Model):
     """Стоимость мойки"""
     carType = models.ForeignKey(
         CarType, verbose_name="Тип авто", on_delete=models.CASCADE)

@@ -57,8 +57,7 @@ car-wash/
 │   └── db.sqlite3
 ├── docs/
 │   └── implementation-plan.md
-├── requirements.txt
-└── car-wash-env/          # legacy local virtual environment from the original project
+└── requirements.txt
 ```
 
 ### Setup
@@ -71,8 +70,8 @@ git clone <repo-url> car-wash
 cd car-wash
 
 # 2. Create and activate a virtual environment
-python3 -m venv car-wash-env
-source car-wash-env/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
@@ -87,9 +86,6 @@ python manage.py createsuperuser
 # 6. Run the development server
 python manage.py runserver
 ```
-
-If your checkout already contains an old `car-wash-env/`, treat it as a legacy
-artifact and create a fresh virtual environment for local work.
 
 After startup:
 
@@ -317,8 +313,7 @@ car-wash/
 │   └── db.sqlite3
 ├── docs/
 │   └── implementation-plan.md
-├── requirements.txt
-└── car-wash-env/          # legacy-окружение из исходного проекта
+└── requirements.txt
 ```
 
 ### Установка и запуск
@@ -331,8 +326,8 @@ git clone <repo-url> car-wash
 cd car-wash
 
 # 2. Создать и активировать виртуальное окружение
-python3 -m venv car-wash-env
-source car-wash-env/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 
 # 3. Установить зависимости
 pip install -r requirements.txt
@@ -347,9 +342,6 @@ python manage.py createsuperuser
 # 6. Запустить dev-сервер
 python manage.py runserver
 ```
-
-Если в checkout уже есть старый `car-wash-env/`, считайте его legacy-артефактом
-и создайте свежее виртуальное окружение для локальной работы.
 
 После запуска доступны:
 

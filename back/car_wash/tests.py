@@ -21,7 +21,7 @@ from car_wash.models import (
     DownPayment,
     ResourceBlock,
     WashBox,
-    WashCoast,
+    WashCost,
     WashDuration,
     WasherShift,
     WashType,
@@ -167,7 +167,7 @@ class PricingServiceTests(TestCase):
             washStation=self.station,
             duration=45,
         )
-        WashCoast.objects.create(
+        WashCost.objects.create(
             carType=self.car_type,
             washType=self.wash_type,
             washStation=self.station,
@@ -249,7 +249,7 @@ class AvailabilityServiceTests(TestCase):
             washStation=self.station,
             duration=60,
         )
-        WashCoast.objects.create(
+        WashCost.objects.create(
             carType=self.car_type,
             washType=self.wash_type,
             washStation=self.station,

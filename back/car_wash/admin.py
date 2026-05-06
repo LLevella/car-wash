@@ -6,7 +6,7 @@ from .models import (
     DownPayment,
     ResourceBlock,
     WashBox,
-    WashCoast,
+    WashCost,
     WashDuration,
     WasherShift,
     WashType,
@@ -27,8 +27,8 @@ class WashDurationAdmin(admin.ModelAdmin):
     list_filter = ("washStation", "washType", "carType")
 
 
-@admin.register(WashCoast)
-class WashCoastAdmin(admin.ModelAdmin):
+@admin.register(WashCost)
+class WashCostAdmin(admin.ModelAdmin):
     """Стоимость мойки"""
     list_display = ("carType", "washType", "washStation", "cost")
     list_filter = ("washStation", "washType", "carType")

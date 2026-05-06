@@ -12,7 +12,7 @@ from personal.models import City, District, Washer, WashStation
 from car_wash.models import (
     DownPayment,
     WashBox,
-    WashCoast,
+    WashCost,
     WashDuration,
     WasherShift,
     WashType,
@@ -75,7 +75,7 @@ class Command(BaseCommand):
             washStation=station,
             defaults={"duration": 45},
         )
-        WashCoast.objects.update_or_create(
+        WashCost.objects.update_or_create(
             carType=car_type,
             washType=wash_type,
             washStation=station,

@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from cars.models import CarType
 from personal.models import WashStation
 
-from car_wash.models import DownPayment, WashCoast, WashDuration, WashType
+from car_wash.models import DownPayment, WashCost, WashDuration, WashType
 
 
 MONEY_QUANT = Decimal("0.01")
@@ -53,7 +53,7 @@ def get_wash_cost(
     wash_station: WashStation,
 ) -> Decimal:
     cost = (
-        WashCoast.objects.filter(
+        WashCost.objects.filter(
             carType=car_type,
             washType=wash_type,
             washStation=wash_station,
