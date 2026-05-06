@@ -118,6 +118,28 @@ def reschedule_booking(
     return booking
 
 
+def assign_booking_resources(
+    *,
+    booking: Booking,
+    wash_box: WashBox | None = None,
+    washers: list[Washer] | None = None,
+) -> Booking:
+    with transaction.atomic():
+        selected_box, selected_washers = _select_resources(
+            wash_station=booking.wash_station,
+            starts_at=booking.starts_at,
+            ends_at=booking.ends_at,
+            wash_box=wash_box,
+            washers=washers,
+            exclude_booking_id=booking.id,
+        )
+        booking.wash_box = selected_box
+        booking.save(update_fields=["wash_box", "updated_at"])
+        _replace_assignments(booking=booking, washers=selected_washers)
+
+    return booking
+
+
 def change_booking_status(*, booking: Booking, status: str) -> Booking:
     valid_statuses = {choice for choice, _ in Booking.Status.choices}
     if status not in valid_statuses:

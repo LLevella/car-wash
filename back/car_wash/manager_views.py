@@ -1,0 +1,355 @@
+from datetime import datetime, time, timedelta
+
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
+
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from personal.models import Washer, WashStation
+
+from car_wash.models import Booking, ResourceBlock, WashBox, WasherShift
+from car_wash.services.booking import (
+    BookingError,
+    assign_booking_resources,
+    change_booking_status,
+)
+from car_wash.views import _booking_payload
+
+
+class ManagerScheduleView(APIView):
+    def get(self, request):
+        try:
+            wash_station, day = _get_station_and_day(request)
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        day_start, day_end = _day_bounds(day)
+
+        bookings = _manager_bookings_queryset().filter(
+            wash_station=wash_station,
+            starts_at__lt=day_end,
+            ends_at__gt=day_start,
+        )
+        boxes = WashBox.objects.filter(wash_station=wash_station).order_by("name")
+        shifts = (
+            WasherShift.objects.filter(
+                wash_station=wash_station,
+                starts_at__lt=day_end,
+                ends_at__gt=day_start,
+            )
+            .select_related("washer")
+            .order_by("starts_at", "washer__surname", "washer__name")
+        )
+        blocks = (
+            ResourceBlock.objects.filter(
+                wash_station=wash_station,
+                starts_at__lt=day_end,
+                ends_at__gt=day_start,
+            )
+            .select_related("wash_box", "washer")
+            .order_by("starts_at")
+        )
+
+        return Response(
+            {
+                "data": {
+                    "station": wash_station.id,
+                    "date": day.isoformat(),
+                    "boxes": [_box_payload(box) for box in boxes],
+                    "shifts": [_shift_payload(shift) for shift in shifts],
+                    "resource_blocks": [
+                        _resource_block_payload(block)
+                        for block in blocks
+                    ],
+                    "bookings": [
+                        _booking_payload(booking)
+                        for booking in bookings.order_by("starts_at", "wash_box__name")
+                    ],
+                }
+            }
+        )
+
+
+class ManagerBookingListView(APIView):
+    def get(self, request):
+        bookings = _manager_bookings_queryset().order_by("-starts_at")
+        station_id = request.query_params.get("station")
+        status_value = request.query_params.get("status")
+        box_id = request.query_params.get("box")
+        washer_id = request.query_params.get("washer")
+        day = parse_date(request.query_params.get("date", ""))
+
+        if station_id:
+            bookings = bookings.filter(wash_station_id=station_id)
+        if status_value:
+            bookings = bookings.filter(status=status_value)
+        if box_id:
+            bookings = bookings.filter(wash_box_id=box_id)
+        if washer_id:
+            bookings = bookings.filter(assignments__washer_id=washer_id)
+        if day:
+            day_start, day_end = _day_bounds(day)
+            bookings = bookings.filter(starts_at__lt=day_end, ends_at__gt=day_start)
+
+        return Response(
+            {
+                "data": [
+                    _booking_payload(booking)
+                    for booking in bookings.distinct()
+                ]
+            }
+        )
+
+
+class ManagerBookingAssignView(APIView):
+    def patch(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+
+        try:
+            wash_box = _get_optional_wash_box(request.data.get("wash_box"))
+            washers = _get_required_washers(request.data.get("washers"))
+            booking = assign_booking_resources(
+                booking=booking,
+                wash_box=wash_box,
+                washers=washers,
+            )
+        except (BookingError, ValueError) as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"data": _booking_payload(booking)})
+
+
+class ManagerBookingStatusView(APIView):
+    def patch(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+
+        try:
+            booking = change_booking_status(
+                booking=booking,
+                status=request.data.get("status"),
+            )
+        except BookingError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"data": _booking_payload(booking)})
+
+
+class ManagerShiftListCreateView(APIView):
+    def get(self, request):
+        shifts = (
+            WasherShift.objects.select_related("washer", "wash_station")
+            .all()
+            .order_by("-starts_at")
+        )
+        station_id = request.query_params.get("station")
+        day = parse_date(request.query_params.get("date", ""))
+
+        if station_id:
+            shifts = shifts.filter(wash_station_id=station_id)
+        if day:
+            day_start, day_end = _day_bounds(day)
+            shifts = shifts.filter(starts_at__lt=day_end, ends_at__gt=day_start)
+
+        return Response({"data": [_shift_payload(shift) for shift in shifts]})
+
+    def post(self, request):
+        try:
+            shift = WasherShift(
+                washer=get_object_or_404(Washer, pk=request.data.get("washer")),
+                wash_station=get_object_or_404(
+                    WashStation,
+                    pk=request.data.get("wash_station"),
+                ),
+                starts_at=_parse_required_datetime(
+                    request.data.get("starts_at"),
+                    field_name="starts_at",
+                ),
+                ends_at=_parse_required_datetime(
+                    request.data.get("ends_at"),
+                    field_name="ends_at",
+                ),
+                is_active=request.data.get("is_active", True),
+            )
+            shift.full_clean()
+            shift.save()
+        except (ValidationError, ValueError) as exc:
+            return Response(
+                {"detail": _error_detail(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"data": _shift_payload(shift)},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManagerResourceBlockListCreateView(APIView):
+    def get(self, request):
+        blocks = (
+            ResourceBlock.objects.select_related("wash_station", "wash_box", "washer")
+            .all()
+            .order_by("-starts_at")
+        )
+        station_id = request.query_params.get("station")
+        day = parse_date(request.query_params.get("date", ""))
+
+        if station_id:
+            blocks = blocks.filter(wash_station_id=station_id)
+        if day:
+            day_start, day_end = _day_bounds(day)
+            blocks = blocks.filter(starts_at__lt=day_end, ends_at__gt=day_start)
+
+        return Response({"data": [_resource_block_payload(block) for block in blocks]})
+
+    def post(self, request):
+        try:
+            block = ResourceBlock(
+                wash_station=get_object_or_404(
+                    WashStation,
+                    pk=request.data.get("wash_station"),
+                ),
+                wash_box=_get_optional_wash_box(request.data.get("wash_box")),
+                washer=_get_optional_washer(request.data.get("washer")),
+                starts_at=_parse_required_datetime(
+                    request.data.get("starts_at"),
+                    field_name="starts_at",
+                ),
+                ends_at=_parse_required_datetime(
+                    request.data.get("ends_at"),
+                    field_name="ends_at",
+                ),
+                reason=request.data.get("reason", ""),
+            )
+            block.full_clean()
+            block.save()
+        except (ValidationError, ValueError) as exc:
+            return Response(
+                {"detail": _error_detail(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"data": _resource_block_payload(block)},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+def _manager_bookings_queryset():
+    return Booking.objects.select_related(
+        "customer",
+        "car",
+        "wash_station",
+        "wash_box",
+        "wash_type",
+    ).prefetch_related("assignments__washer")
+
+
+def _get_station_and_day(request):
+    station_id = request.query_params.get("station")
+    day = parse_date(request.query_params.get("date", ""))
+
+    if not station_id or day is None:
+        raise ValueError("Параметры station и date обязательны.")
+
+    return get_object_or_404(WashStation, pk=station_id), day
+
+
+def _day_bounds(day):
+    day_start = timezone.make_aware(
+        datetime.combine(day, time.min),
+        timezone.get_current_timezone(),
+    )
+    day_end = day_start + timedelta(days=1)
+    return day_start, day_end
+
+
+def _parse_required_datetime(value, *, field_name):
+    parsed = parse_datetime(value or "")
+    if parsed is None:
+        raise ValueError(f"Поле {field_name} обязательно в ISO-формате.")
+
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+
+    return parsed
+
+
+def _get_optional_wash_box(value):
+    if not value:
+        return None
+
+    return get_object_or_404(WashBox, pk=value)
+
+
+def _get_optional_washer(value):
+    if not value:
+        return None
+
+    return get_object_or_404(Washer, pk=value)
+
+
+def _get_required_washers(value):
+    if value is None:
+        raise BookingError("Поле washers обязательно.")
+
+    washer_ids = value if isinstance(value, list) else [value]
+    washers = list(Washer.objects.filter(id__in=washer_ids))
+
+    if len(washers) != len(set(map(int, washer_ids))):
+        raise BookingError("Один или несколько мойщиков не найдены.")
+
+    return washers
+
+
+def _box_payload(box):
+    return {
+        "id": box.id,
+        "name": box.name,
+        "is_active": box.is_active,
+    }
+
+
+def _shift_payload(shift):
+    return {
+        "id": shift.id,
+        "washer": shift.washer_id,
+        "washer_name": str(shift.washer),
+        "wash_station": shift.wash_station_id,
+        "starts_at": shift.starts_at.isoformat(),
+        "ends_at": shift.ends_at.isoformat(),
+        "is_active": shift.is_active,
+    }
+
+
+def _resource_block_payload(block):
+    return {
+        "id": block.id,
+        "wash_station": block.wash_station_id,
+        "wash_box": block.wash_box_id,
+        "washer": block.washer_id,
+        "starts_at": block.starts_at.isoformat(),
+        "ends_at": block.ends_at.isoformat(),
+        "reason": block.reason,
+    }
+
+
+def _error_detail(exc):
+    if hasattr(exc, "message_dict"):
+        return exc.message_dict
+    if hasattr(exc, "messages"):
+        return exc.messages
+    return str(exc)

@@ -370,8 +370,165 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["data"]["wash_box"], self.box.id)
         self.assertEqual(payload["data"]["washers"][0]["id"], self.washer.id)
 
+    def test_manager_schedule_api_returns_day_resources_and_bookings(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        ResourceBlock.objects.create(
+            wash_station=self.station,
+            starts_at=make_dt(self.day, 11),
+            ends_at=make_dt(self.day, 12),
+            reason="Перерыв",
+        )
+        url = reverse("api:manager:schedule")
+
+        response = self.client.get(
+            url,
+            {
+                "station": self.station.id,
+                "date": self.day.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(payload["station"], self.station.id)
+        self.assertEqual(payload["bookings"][0]["id"], booking.id)
+        self.assertEqual(payload["boxes"][0]["id"], self.box.id)
+        self.assertEqual(payload["shifts"][0]["washer"], self.washer.id)
+        self.assertEqual(payload["resource_blocks"][0]["reason"], "Перерыв")
+
+    def test_manager_booking_list_filters_by_status_and_washer(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        url = reverse("api:manager:booking-list")
+
+        response = self.client.get(
+            url,
+            {
+                "station": self.station.id,
+                "date": self.day.isoformat(),
+                "status": Booking.Status.PENDING,
+                "washer": self.washer.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["id"], booking.id)
+
+    def test_manager_assign_api_replaces_box_and_washer(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        second_box = WashBox.objects.create(
+            wash_station=self.station,
+            name="Бокс 2",
+        )
+        second_washer = Washer.objects.create(
+            name="Петр",
+            surname="Иванов",
+        )
+        WasherShift.objects.create(
+            washer=second_washer,
+            wash_station=self.station,
+            starts_at=make_dt(self.day, 9),
+            ends_at=make_dt(self.day, 12),
+        )
+        url = reverse("api:manager:booking-assign", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {
+                "wash_box": second_box.id,
+                "washers": [second_washer.id],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(payload["wash_box"], second_box.id)
+        self.assertEqual(payload["washers"][0]["id"], second_washer.id)
+
+    def test_manager_status_api_changes_booking_status(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        url = reverse("api:manager:booking-status", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {"status": Booking.Status.CONFIRMED},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["status"], Booking.Status.CONFIRMED)
+
+    def test_manager_shift_api_creates_shift(self):
+        washer = Washer.objects.create(name="Сергей", surname="Сидоров")
+        url = reverse("api:manager:shift-list")
+
+        response = self.client.post(
+            url,
+            {
+                "washer": washer.id,
+                "wash_station": self.station.id,
+                "starts_at": make_dt(self.day, 13).isoformat(),
+                "ends_at": make_dt(self.day, 18).isoformat(),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()["data"]
+        self.assertEqual(payload["washer"], washer.id)
+        self.assertEqual(payload["wash_station"], self.station.id)
+
+    def test_manager_resource_block_api_creates_block(self):
+        url = reverse("api:manager:resource-block-list")
+
+        response = self.client.post(
+            url,
+            {
+                "wash_station": self.station.id,
+                "wash_box": self.box.id,
+                "starts_at": make_dt(self.day, 13).isoformat(),
+                "ends_at": make_dt(self.day, 14).isoformat(),
+                "reason": "Ремонт",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()["data"]
+        self.assertEqual(payload["wash_box"], self.box.id)
+        self.assertEqual(payload["reason"], "Ремонт")
+
     def _create_booking(self, *, starts_at, ends_at, status):
-        car = Car.objects.create(number=f"TEST{Booking.objects.count()}", carType=self.car_type)
+        car = Car.objects.create(
+            number=f"TEST{Booking.objects.count()}",
+            carType=self.car_type,
+        )
         customer = Customer.objects.create(
             name="Анна",
             phoneNumber=f"+7999000000{Booking.objects.count()}",

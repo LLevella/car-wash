@@ -90,6 +90,7 @@ python manage.py runserver
 | `/api/customers/`    | Клиенты и их автомобили                     |
 | `/api/personal/`     | Мойщики, станции, смены                     |
 | `/api/car-wash/`     | Типы мойки, цены, боксы, бронирования       |
+| `/api/manager/`      | Расписание, назначения, смены и блокировки  |
 
 Расчёт свободных слотов:
 
@@ -97,8 +98,31 @@ python manage.py runserver
 GET /api/car-wash/availability/?station=1&car_type=1&wash_type=1&date=2026-05-06
 ```
 
-Запросы и ответы — в формате [JSON:API](https://jsonapi.org/)
-(`Content-Type: application/vnd.api+json`).
+Бронирования:
+
+```text
+GET    /api/car-wash/bookings/
+POST   /api/car-wash/bookings/
+PATCH  /api/car-wash/bookings/{id}/cancel/
+PATCH  /api/car-wash/bookings/{id}/reschedule/
+PATCH  /api/car-wash/bookings/{id}/status/
+```
+
+Кабинет руководителя:
+
+```text
+GET    /api/manager/schedule/?station=1&date=2026-05-06
+GET    /api/manager/bookings/
+PATCH  /api/manager/bookings/{id}/assign/
+PATCH  /api/manager/bookings/{id}/status/
+GET    /api/manager/shifts/
+POST   /api/manager/shifts/
+GET    /api/manager/resource-blocks/
+POST   /api/manager/resource-blocks/
+```
+
+MVP endpoints принимают и отдают обычный JSON. JSON:API-компоненты DRF
+остаются подключенными для дальнейшей совместимости.
 
 ## Сервисный слой
 
@@ -123,7 +147,8 @@ python manage.py test
 
 ## Статус разработки
 
-Этапы 1–4 (подготовка проекта, модель данных, расчёт цены, расчёт доступности)
-выполнены. В работе — сервис бронирования, кабинет руководителя, права доступа
-и демо-данные. Подробности и критерии готовности — в
+Этапы 1–6 выполнены: подготовка проекта, модель данных, расчёт цены,
+доступность, бронирование и базовый кабинет руководителя. Следующие крупные
+шаги — права доступа, дополнительная валидация и демо-данные. Подробности и
+критерии готовности — в
 [docs/implementation-plan.md](docs/implementation-plan.md).
