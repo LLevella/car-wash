@@ -13,11 +13,11 @@ export function login(username: string, password: string) {
 }
 
 export function logout() {
-  return apiRequest<void>("/api/auth/logout/", {
+  return apiRequest<CurrentUser>("/api/auth/logout/", {
     method: "POST",
   });
 }
 
 export function ensureCsrfCookie() {
-  return apiRequest<void>("/api/auth/csrf/");
+  return apiRequest<{ csrf_token: string }>("/api/auth/csrf/");
 }

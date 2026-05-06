@@ -41,6 +41,8 @@ is documented in
 
 ```text
 car-wash/
+├── docker/                # Docker images and runtime entrypoints
+├── docker-compose.yml     # One-command local full-system startup
 ├── .github/
 │   └── workflows/
 │       └── ci-cd.yml      # GitHub Actions CI/CD workflow
@@ -75,6 +77,34 @@ car-wash/
 ### Setup
 
 Python 3.9-3.11 is recommended for this Django 4.1.x project.
+
+Fast full-system startup with Docker:
+
+```bash
+docker compose up --build
+```
+
+After startup:
+
+- Frontend: http://127.0.0.1:5173/
+- Backend API: http://127.0.0.1:8000/api/
+- Admin: http://127.0.0.1:8000/admin/
+- Healthcheck: http://127.0.0.1:8000/health/
+
+The backend container applies migrations automatically and seeds demo data by
+default. Demo users are `demo_customer` / `password`, `demo_manager` /
+`password`, and `demo_admin` / `password`. The SQLite database is stored in the
+`backend-data` Docker volume. To reset the demo database:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+To start without demo data, set `DJANGO_SEED_DEMO_DATA=false` for the backend
+service in `docker-compose.yml` before recreating the volume.
+
+Manual local setup:
 
 ```bash
 # 1. Clone the repository and enter it
@@ -355,6 +385,8 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 
 ```text
 car-wash/
+├── docker/                # Docker images и runtime entrypoints
+├── docker-compose.yml     # запуск всей системы одной командой
 ├── .github/
 │   └── workflows/
 │       └── ci-cd.yml      # GitHub Actions CI/CD workflow
@@ -389,6 +421,34 @@ car-wash/
 ### Установка и запуск
 
 Для проекта на Django 4.1.x рекомендуется Python 3.9-3.11.
+
+Быстрый запуск всей системы через Docker:
+
+```bash
+docker compose up --build
+```
+
+После запуска доступны:
+
+- Frontend: http://127.0.0.1:5173/
+- Backend API: http://127.0.0.1:8000/api/
+- Админка: http://127.0.0.1:8000/admin/
+- Healthcheck: http://127.0.0.1:8000/health/
+
+Backend-контейнер автоматически применяет миграции и по умолчанию создает
+демо-данные. Демо-пользователи: `demo_customer` / `password`,
+`demo_manager` / `password`, `demo_admin` / `password`. SQLite-база хранится в
+Docker volume `backend-data`. Чтобы сбросить demo database:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+Чтобы запустить без demo data, установите `DJANGO_SEED_DEMO_DATA=false` для
+backend service в `docker-compose.yml` перед пересозданием volume.
+
+Ручная локальная установка:
 
 ```bash
 # 1. Клонировать репозиторий и перейти в каталог

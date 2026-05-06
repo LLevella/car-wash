@@ -4,6 +4,7 @@ export type ApiEnvelope<T> = {
 
 export type ApiErrorBody = {
   detail?: string | string[] | Record<string, string[]>;
+  field_errors?: Record<string, string[]>;
   [field: string]: unknown;
 };
 

@@ -94,6 +94,30 @@ a {
   margin-top: auto;
 }
 
+.sidebar__session {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-line);
+}
+
+.sidebar__session strong,
+.sidebar__session span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.sidebar__session strong {
+  font-size: 14px;
+}
+
+.sidebar__session span {
+  margin-top: var(--space-1);
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
 .app-main {
   min-width: 0;
   padding: var(--space-8);
@@ -146,6 +170,11 @@ a {
 
 .panel {
   padding: var(--space-5);
+}
+
+.state-panel {
+  color: var(--color-muted);
+  font-weight: 700;
 }
 
 .form-grid {
@@ -349,6 +378,20 @@ a {
   gap: var(--space-4);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-line);
+}
+
+.booking-result {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid #a7ead8;
+  border-radius: var(--radius-small);
+  background: #ecfdf7;
+  color: #075e45;
+}
+
+.booking-result span {
+  font-size: 13px;
 }
 
 .summary dl,
@@ -568,6 +611,10 @@ a {
   }
 
   .sidebar__login {
+    display: none;
+  }
+
+  .sidebar__session {
     display: none;
   }
 

@@ -27,12 +27,14 @@ function renderRoute(path = "/book") {
 }
 
 describe("App", () => {
-  it("renders the booking workspace", () => {
+  it("renders the booking workspace", async () => {
     renderRoute();
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Новая запись" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /10:30/i })).toHaveClass("slot--active");
+    expect(await screen.findByRole("button", { name: /10:30/i })).toHaveClass(
+      "slot--active",
+    );
   });
 });

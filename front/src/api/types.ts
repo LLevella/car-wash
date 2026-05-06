@@ -1,18 +1,33 @@
 export type UserRole = "customer" | "manager" | "admin";
 
 export type CurrentUser = {
-  id: number;
-  username: string;
+  is_authenticated: boolean;
+  user: UserProfile | null;
   roles: UserRole[];
   customer_id: number | null;
+};
+
+export type UserProfile = {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_staff: boolean;
+  is_superuser: boolean;
 };
 
 export type Station = {
   id: number;
   name: string;
-  city?: string;
-  district?: string;
+  city?: NamedEntity;
+  district?: NamedEntity;
   address?: string;
+};
+
+export type NamedEntity = {
+  id: number;
+  name: string;
 };
 
 export type WashBox = {
@@ -35,7 +50,15 @@ export type CarType = {
 export type CustomerCar = {
   id: number;
   number: string;
-  car_type: number;
+  car_type: number | CarType;
+};
+
+export type CurrentCustomer = {
+  id: number;
+  name: string;
+  phone_number: string;
+  user_id: number | null;
+  car: CustomerCar;
 };
 
 export type WashType = {
@@ -44,14 +67,17 @@ export type WashType = {
   description?: string;
 };
 
+export type ResourceOption = {
+  id: number;
+  name: string;
+};
+
 export type AvailabilitySlot = {
   starts_at: string;
   ends_at: string;
-  wash_box: number;
-  wash_box_name: string;
-  cost: string;
-  down_payment: string;
-  residual: string;
+  duration_minutes: number;
+  boxes: ResourceOption[];
+  washers: ResourceOption[];
 };
 
 export type BookingStatus =
