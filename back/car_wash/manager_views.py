@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from personal.models import Washer, WashStation
 
 from car_wash.models import Booking, ResourceBlock, WashBox, WasherShift
+from car_wash.permissions import IsManager
 from car_wash.services.booking import (
     BookingError,
     assign_booking_resources,
@@ -21,6 +22,8 @@ from car_wash.views import _booking_payload
 
 
 class ManagerScheduleView(APIView):
+    permission_classes = (IsManager,)
+
     def get(self, request):
         try:
             wash_station, day = _get_station_and_day(request)
@@ -78,6 +81,8 @@ class ManagerScheduleView(APIView):
 
 
 class ManagerBookingListView(APIView):
+    permission_classes = (IsManager,)
+
     def get(self, request):
         bookings = _manager_bookings_queryset().order_by("-starts_at")
         station_id = request.query_params.get("station")
@@ -109,6 +114,8 @@ class ManagerBookingListView(APIView):
 
 
 class ManagerBookingAssignView(APIView):
+    permission_classes = (IsManager,)
+
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
 
@@ -130,6 +137,8 @@ class ManagerBookingAssignView(APIView):
 
 
 class ManagerBookingStatusView(APIView):
+    permission_classes = (IsManager,)
+
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
 
@@ -148,6 +157,8 @@ class ManagerBookingStatusView(APIView):
 
 
 class ManagerShiftListCreateView(APIView):
+    permission_classes = (IsManager,)
+
     def get(self, request):
         shifts = (
             WasherShift.objects.select_related("washer", "wash_station")
@@ -198,6 +209,8 @@ class ManagerShiftListCreateView(APIView):
 
 
 class ManagerResourceBlockListCreateView(APIView):
+    permission_classes = (IsManager,)
+
     def get(self, request):
         blocks = (
             ResourceBlock.objects.select_related("wash_station", "wash_box", "washer")

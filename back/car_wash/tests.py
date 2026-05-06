@@ -1,6 +1,9 @@
 from decimal import Decimal
 from datetime import date, datetime, time
+from io import StringIO
 
+from django.contrib.auth.models import Group, User
+from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -19,6 +22,7 @@ from car_wash.models import (
     WasherShift,
     WashType,
 )
+from car_wash.permissions import CUSTOMER_GROUP, MANAGER_GROUP
 from car_wash.services.availability import get_available_slots
 from car_wash.services.booking import (
     BookingError,
@@ -114,6 +118,17 @@ class PricingServiceTests(TestCase):
 
 class AvailabilityServiceTests(TestCase):
     def setUp(self):
+        self.customer_user = User.objects.create_user(
+            username="anna",
+            password="password",
+        )
+        self.manager_user = User.objects.create_user(
+            username="manager",
+            password="password",
+        )
+        self._add_user_to_group(self.customer_user, CUSTOMER_GROUP)
+        self._add_user_to_group(self.manager_user, MANAGER_GROUP)
+
         city = City.objects.create(name="Москва")
         district = District.objects.create(name="Центральный")
         self.station = WashStation.objects.create(
@@ -163,6 +178,7 @@ class AvailabilityServiceTests(TestCase):
         )
         self.car = Car.objects.create(number="A001AA", carType=self.car_type)
         self.customer = Customer.objects.create(
+            user=self.customer_user,
             name="Анна",
             phoneNumber="+79990000000",
             car=self.car,
@@ -350,6 +366,7 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
 
     def test_booking_api_creates_booking(self):
+        self._login_customer()
         url = reverse("api:car_wash:booking-list")
 
         response = self.client.post(
@@ -370,7 +387,99 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["data"]["wash_box"], self.box.id)
         self.assertEqual(payload["data"]["washers"][0]["id"], self.washer.id)
 
+    def test_booking_api_requires_authenticated_user(self):
+        url = reverse("api:car_wash:booking-list")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_customer_booking_list_returns_only_own_bookings(self):
+        own_booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        other_customer, _ = self._create_other_customer()
+        Booking.objects.create(
+            customer=other_customer,
+            car=other_customer.car,
+            wash_station=self.station,
+            wash_box=self.box,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 11),
+            ends_at=make_dt(self.day, 12),
+            status=Booking.Status.PENDING,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )
+        self._login_customer()
+        url = reverse("api:car_wash:booking-list")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["id"], own_booking.id)
+
+    def test_customer_cannot_create_booking_for_another_customer(self):
+        other_customer, other_car = self._create_other_customer()
+        self._login_customer()
+        url = reverse("api:car_wash:booking-list")
+
+        response = self.client.post(
+            url,
+            {
+                "customer": other_customer.id,
+                "car": other_car.id,
+                "wash_station": self.station.id,
+                "wash_type": self.wash_type.id,
+                "starts_at": make_dt(self.day, 9).isoformat(),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_customer_cannot_manually_assign_resources(self):
+        self._login_customer()
+        url = reverse("api:car_wash:booking-list")
+
+        response = self.client.post(
+            url,
+            {
+                "customer": self.customer.id,
+                "car": self.car.id,
+                "wash_station": self.station.id,
+                "wash_type": self.wash_type.id,
+                "starts_at": make_dt(self.day, 9).isoformat(),
+                "wash_box": self.box.id,
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_customer_cannot_access_manager_schedule(self):
+        self._login_customer()
+        url = reverse("api:manager:schedule")
+
+        response = self.client.get(
+            url,
+            {
+                "station": self.station.id,
+                "date": self.day.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
     def test_manager_schedule_api_returns_day_resources_and_bookings(self):
+        self._login_manager()
         booking = create_booking(
             customer=self.customer,
             car=self.car,
@@ -403,6 +512,7 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["resource_blocks"][0]["reason"], "Перерыв")
 
     def test_manager_booking_list_filters_by_status_and_washer(self):
+        self._login_manager()
         booking = create_booking(
             customer=self.customer,
             car=self.car,
@@ -428,6 +538,7 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload[0]["id"], booking.id)
 
     def test_manager_assign_api_replaces_box_and_washer(self):
+        self._login_manager()
         booking = create_booking(
             customer=self.customer,
             car=self.car,
@@ -466,6 +577,7 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["washers"][0]["id"], second_washer.id)
 
     def test_manager_status_api_changes_booking_status(self):
+        self._login_manager()
         booking = create_booking(
             customer=self.customer,
             car=self.car,
@@ -485,6 +597,7 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(response.json()["data"]["status"], Booking.Status.CONFIRMED)
 
     def test_manager_shift_api_creates_shift(self):
+        self._login_manager()
         washer = Washer.objects.create(name="Сергей", surname="Сидоров")
         url = reverse("api:manager:shift-list")
 
@@ -505,6 +618,7 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["wash_station"], self.station.id)
 
     def test_manager_resource_block_api_creates_block(self):
+        self._login_manager()
         url = reverse("api:manager:resource-block-list")
 
         response = self.client.post(
@@ -523,6 +637,34 @@ class AvailabilityServiceTests(TestCase):
         payload = response.json()["data"]
         self.assertEqual(payload["wash_box"], self.box.id)
         self.assertEqual(payload["reason"], "Ремонт")
+
+    def _add_user_to_group(self, user, group_name):
+        group, _ = Group.objects.get_or_create(name=group_name)
+        user.groups.add(group)
+
+    def _login_customer(self):
+        self.client.force_login(self.customer_user)
+
+    def _login_manager(self):
+        self.client.force_login(self.manager_user)
+
+    def _create_other_customer(self):
+        other_user = User.objects.create_user(
+            username=f"customer-{Customer.objects.count()}",
+            password="password",
+        )
+        self._add_user_to_group(other_user, CUSTOMER_GROUP)
+        other_car = Car.objects.create(
+            number=f"OTHER{Customer.objects.count()}",
+            carType=self.car_type,
+        )
+        other_customer = Customer.objects.create(
+            user=other_user,
+            name="Олег",
+            phoneNumber=f"+7999000100{Customer.objects.count()}",
+            car=other_car,
+        )
+        return other_customer, other_car
 
     def _create_booking(self, *, starts_at, ends_at, status):
         car = Car.objects.create(
@@ -548,3 +690,19 @@ class AvailabilityServiceTests(TestCase):
             down_payment=Decimal("250.00"),
             residual=Decimal("750.00"),
         )
+
+
+class DemoDataCommandTests(TestCase):
+    def test_seed_demo_data_creates_local_demo_dataset(self):
+        out = StringIO()
+
+        call_command("seed_demo_data", stdout=out)
+
+        self.assertTrue(User.objects.filter(username="demo_manager").exists())
+        self.assertTrue(User.objects.filter(username="demo_customer").exists())
+        self.assertTrue(User.objects.filter(username="demo_admin").exists())
+        self.assertTrue(WashStation.objects.filter(name="Demo Station").exists())
+        self.assertEqual(WashBox.objects.count(), 2)
+        self.assertEqual(WasherShift.objects.count(), 2)
+        self.assertTrue(Customer.objects.filter(phoneNumber="+10000000000").exists())
+        self.assertIn("Demo data created", out.getvalue())

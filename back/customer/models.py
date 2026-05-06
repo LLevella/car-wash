@@ -1,5 +1,7 @@
 from django.db import models
+from django.contrib.auth.models import User
 from cars.models import CarType
+
 
 class Car(models.Model):
     """Автомобиль"""
@@ -16,6 +18,14 @@ class Car(models.Model):
 
 class Customer(models.Model):
     """Заказчик"""
+    user = models.OneToOneField(
+        User,
+        verbose_name="Пользователь",
+        on_delete=models.SET_NULL,
+        related_name="customer_profile",
+        blank=True,
+        null=True,
+    )
     name = models.CharField("Имя", max_length=150)
     phoneNumber = models.CharField("Номер телефона", max_length=100)
     car = models.ForeignKey(

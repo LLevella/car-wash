@@ -86,6 +86,18 @@ After startup:
 - Admin: http://127.0.0.1:8000/admin/
 - API: http://127.0.0.1:8000/api/
 
+Optional demo data:
+
+```bash
+python manage.py seed_demo_data
+```
+
+Demo users:
+
+- `demo_customer` / `password`
+- `demo_manager` / `password`
+- `demo_admin` / `password`
+
 ### API
 
 The root API prefix is `/api/`.
@@ -144,6 +156,20 @@ Business logic lives in `back/car_wash/services/`:
 Statuses that block capacity: `pending`, `confirmed`, `in_progress`. Statuses
 `cancelled`, `completed`, and `no_show` do not block slots.
 
+### Access Control
+
+The backend uses Django users and groups:
+
+- `customer` - can create bookings and see only bookings linked to their
+  `Customer.user` profile.
+- `manager` - can use manager endpoints, assign resources, manage shifts, and
+  change booking statuses.
+- `admin` - has manager-level API access; Django staff and superusers are also
+  treated as admins.
+
+Availability lookup remains public. Booking endpoints require an authenticated
+customer, manager, or admin. Manager endpoints require a manager or admin.
+
 ### Tests
 
 ```bash
@@ -153,9 +179,9 @@ python manage.py test
 
 ### Development Status
 
-Stages 1-6 are complete: project setup, data model, pricing, availability,
-booking, and the basic manager workspace. The next major steps are permissions,
-additional validation, and demo data. See
+Stages 1-8 are complete: project setup, data model, pricing, availability,
+booking, the basic manager workspace, role-based access control, tests, and
+demo data. See
 [docs/implementation-plan.md](docs/implementation-plan.md) for details and
 acceptance criteria.
 
@@ -241,6 +267,18 @@ python manage.py runserver
 - Админка: http://127.0.0.1:8000/admin/
 - API: http://127.0.0.1:8000/api/
 
+Опциональные демо-данные:
+
+```bash
+python manage.py seed_demo_data
+```
+
+Демо-пользователи:
+
+- `demo_customer` / `password`
+- `demo_manager` / `password`
+- `demo_admin` / `password`
+
 ### API
 
 Корневой префикс API - `/api/`.
@@ -299,6 +337,21 @@ MVP endpoints принимают и отдают обычный JSON. JSON:API-�
 Активными для занятости считаются статусы `pending`, `confirmed`,
 `in_progress`. Статусы `cancelled`, `completed`, `no_show` слот не блокируют.
 
+### Права доступа
+
+Backend использует пользователей и группы Django:
+
+- `customer` - может создавать записи и видеть только записи, связанные с его
+  профилем `Customer.user`.
+- `manager` - может использовать manager endpoints, назначать ресурсы,
+  управлять сменами и менять статусы записей.
+- `admin` - имеет доступ уровня manager; Django staff и superuser также
+  считаются администраторами.
+
+Расчет доступности остается публичным. Booking endpoints требуют
+аутентифицированного клиента, менеджера или администратора. Manager endpoints
+требуют менеджера или администратора.
+
 ### Тесты
 
 ```bash
@@ -308,8 +361,7 @@ python manage.py test
 
 ### Статус разработки
 
-Этапы 1-6 выполнены: подготовка проекта, модель данных, расчет цены,
-доступность, бронирование и базовый кабинет руководителя. Следующие крупные
-шаги - права доступа, дополнительная валидация и демо-данные. Подробности и
-критерии готовности - в
+Этапы 1-8 выполнены: подготовка проекта, модель данных, расчет цены,
+доступность, бронирование, базовый кабинет руководителя, ролевой доступ,
+тесты и демо-данные. Подробности и критерии готовности - в
 [docs/implementation-plan.md](docs/implementation-plan.md).

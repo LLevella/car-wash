@@ -10,6 +10,14 @@ from customer.models import Car, Customer
 from personal.models import Washer, WashStation
 
 from car_wash.models import Booking, WashBox, WashType
+from car_wash.permissions import (
+    IsCustomerOrManager,
+    IsManager,
+    can_access_customer,
+    can_access_booking,
+    get_request_customer,
+    is_manager_user,
+)
 from car_wash.services.availability import get_available_slots
 from car_wash.services.booking import (
     BookingError,
@@ -60,6 +68,8 @@ class AvailabilityView(APIView):
 
 
 class BookingListCreateView(APIView):
+    permission_classes = (IsCustomerOrManager,)
+
     def get(self, request):
         customer_id = request.query_params.get("customer")
         bookings = Booking.objects.select_related(
@@ -70,8 +80,13 @@ class BookingListCreateView(APIView):
             "wash_type",
         ).order_by("-starts_at")
 
-        if customer_id:
+        if is_manager_user(request.user) and customer_id:
             bookings = bookings.filter(customer_id=customer_id)
+        elif not is_manager_user(request.user):
+            customer = get_request_customer(request.user)
+            if customer is None:
+                return Response({"data": []})
+            bookings = bookings.filter(customer=customer)
 
         return Response({"data": [_booking_payload(booking) for booking in bookings]})
 
@@ -85,6 +100,25 @@ class BookingListCreateView(APIView):
                 pk=request.data.get("wash_station"),
             )
             wash_type = get_object_or_404(WashType, pk=request.data.get("wash_type"))
+
+            if not can_access_customer(request.user, customer):
+                return Response(
+                    {"detail": "Нет доступа к этому заказчику."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if (
+                not is_manager_user(request.user)
+                and (
+                    request.data.get("wash_box") is not None
+                    or request.data.get("washers") is not None
+                )
+            ):
+                return Response(
+                    {"detail": "Назначать бокс и мойщиков может только менеджер."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             wash_box = _get_optional_wash_box(request.data.get("wash_box"))
             washers = _get_optional_washers(request.data.get("washers"))
 
@@ -110,8 +144,16 @@ class BookingListCreateView(APIView):
 
 
 class BookingCancelView(APIView):
+    permission_classes = (IsCustomerOrManager,)
+
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
+
+        if not can_access_booking(request.user, booking):
+            return Response(
+                {"detail": "Нет доступа к этой записи."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         try:
             booking = cancel_booking(booking=booking)
@@ -125,10 +167,30 @@ class BookingCancelView(APIView):
 
 
 class BookingRescheduleView(APIView):
+    permission_classes = (IsCustomerOrManager,)
+
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
 
+        if not can_access_booking(request.user, booking):
+            return Response(
+                {"detail": "Нет доступа к этой записи."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         try:
+            if (
+                not is_manager_user(request.user)
+                and (
+                    request.data.get("wash_box") is not None
+                    or request.data.get("washers") is not None
+                )
+            ):
+                return Response(
+                    {"detail": "Назначать бокс и мойщиков может только менеджер."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
             starts_at = _parse_required_datetime(request.data.get("starts_at"))
             wash_box = _get_optional_wash_box(request.data.get("wash_box"))
             washers = _get_optional_washers(request.data.get("washers"))
@@ -148,6 +210,8 @@ class BookingRescheduleView(APIView):
 
 
 class BookingStatusView(APIView):
+    permission_classes = (IsManager,)
+
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
 
