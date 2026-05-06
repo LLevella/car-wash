@@ -6,6 +6,7 @@ __pycache__/
 .venv/
 venv/
 env/
+car-wash-env/
 
 # Django/local runtime
 .env
