@@ -113,6 +113,7 @@ Local authentication:
 - Use `/admin/` or the DRF browsable API login for session authentication.
 - `demo_customer` can access customer booking endpoints.
 - `demo_manager` and `demo_admin` can access manager endpoints.
+- SPA clients can use JSON session auth endpoints under `/api/auth/`.
 
 ### Runtime Configuration
 
@@ -153,8 +154,18 @@ The root API prefix is `/api/`.
 | `/api/cars/`       | Car brands, models, and types                |
 | `/api/customers/`  | Customers and their cars                     |
 | `/api/personal/`   | Washers, stations, shifts                    |
+| `/api/auth/`       | Session auth, current user, CSRF             |
 | `/api/car-wash/`   | Wash types, prices, bays, bookings           |
 | `/api/manager/`    | Schedule, assignments, shifts, resource blocks |
+
+Authentication:
+
+```text
+GET    /api/auth/csrf/
+POST   /api/auth/login/
+POST   /api/auth/logout/
+GET    /api/auth/me/
+```
 
 Available slots:
 
@@ -257,9 +268,10 @@ Deployment secrets:
 
 ### Development Status
 
-Stages 1-10 are complete: project setup, data model, pricing, availability,
+Stages 1-12 are complete: project setup, data model, pricing, availability,
 booking, the basic manager workspace, role-based access control, tests,
-demo data, CI/CD, and production-ready runtime configuration. See
+demo data, CI/CD, production-ready runtime configuration, model cleanup, and
+SPA auth API. See
 [docs/implementation-plan.md](docs/implementation-plan.md) for details and
 acceptance criteria.
 
@@ -372,6 +384,7 @@ python manage.py seed_demo_data
 - Для session auth используйте `/admin/` или login в browsable API DRF.
 - `demo_customer` может работать с клиентскими endpoints бронирования.
 - `demo_manager` и `demo_admin` могут работать с manager endpoints.
+- SPA-клиенты могут использовать JSON session auth endpoints под `/api/auth/`.
 
 ### Runtime Configuration
 
@@ -412,8 +425,18 @@ export DATABASE_URL="postgres://carwash:password@localhost:5432/carwash"
 | `/api/cars/`       | Марки, модели и типы автомобилей            |
 | `/api/customers/`  | Клиенты и их автомобили                     |
 | `/api/personal/`   | Мойщики, станции, смены                     |
+| `/api/auth/`       | Session auth, текущий пользователь, CSRF    |
 | `/api/car-wash/`   | Типы мойки, цены, боксы, бронирования       |
 | `/api/manager/`    | Расписание, назначения, смены и блокировки  |
+
+Аутентификация:
+
+```text
+GET    /api/auth/csrf/
+POST   /api/auth/login/
+POST   /api/auth/logout/
+GET    /api/auth/me/
+```
 
 Расчет свободных слотов:
 
@@ -517,8 +540,8 @@ Secrets для деплоя:
 
 ### Статус разработки
 
-Этапы 1-10 выполнены: подготовка проекта, модель данных, расчет цены,
+Этапы 1-12 выполнены: подготовка проекта, модель данных, расчет цены,
 доступность, бронирование, базовый кабинет руководителя, ролевой доступ,
-тесты, демо-данные, CI/CD и production-ready runtime configuration. Подробности
-и критерии готовности - в
+тесты, демо-данные, CI/CD, production-ready runtime configuration, cleanup
+моделей и SPA auth API. Подробности и критерии готовности - в
 [docs/implementation-plan.md](docs/implementation-plan.md).

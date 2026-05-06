@@ -696,6 +696,49 @@ back/
 - тесты проходят;
 - в коде, кроме исторических миграций, нет ссылок на `WashCoast`.
 
+### Этап 12. SPA session auth API
+
+Статус: выполнен.
+
+Задачи:
+
+- Добавить JSON endpoints для session auth будущего frontend.
+- Вернуть текущего пользователя, роли и связанный `customer_id`.
+- Поддержать login/logout без HTML-форм Django admin.
+- Добавить endpoint выдачи CSRF cookie/token.
+- Сохранить regular JSON contract для frontend API client.
+- Покрыть auth endpoints тестами.
+
+Реализовано:
+
+- Добавлен модуль `back.auth_views`.
+- Добавлены маршруты `back.auth_urls` под префиксом `/api/auth/`.
+- Реализованы endpoints:
+  - `GET /api/auth/csrf/`
+  - `POST /api/auth/login/`
+  - `POST /api/auth/logout/`
+  - `GET /api/auth/me/`
+- `GET /api/auth/me/` возвращает безопасный anonymous payload для гостя.
+- Auth payload содержит `is_authenticated`, `user`, `roles` и `customer_id`.
+- Ошибки login возвращают `detail` и `field_errors`.
+- Login/logout защищены CSRF protection; frontend должен получить CSRF через
+  `/api/auth/csrf/` перед unsafe methods.
+- Добавлены тесты anonymous/current user, CSRF cookie, login, роли,
+  validation errors, bad credentials и logout.
+
+Результат:
+
+- frontend может реализовать auth shell и role guards без HTML-страниц Django;
+- session auth остается совместимым с Django admin и browsable API.
+
+Критерии готовности:
+
+- `/api/auth/me/` работает для гостя и авторизованного пользователя;
+- login возвращает роли `customer`, `manager`, `admin`;
+- logout очищает session;
+- `/api/auth/csrf/` выставляет `csrftoken`;
+- тесты проходят.
+
 ## 11. Рекомендуемый порядок реализации MVP
 
 1. `WashBox`, `WasherShift`, `Booking`, `BookingAssignment`, `ResourceBlock`.
@@ -709,6 +752,7 @@ back/
 9. CI/CD.
 10. Production-ready конфигурация.
 11. Переименование `WashCoast` в `WashCost`.
+12. SPA session auth API.
 
 ## 12. Риски и решения
 

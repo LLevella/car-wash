@@ -10,6 +10,7 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("auth/", include("back.auth_urls")),
     path("cars/", include("cars.urls")),
     path("customers/", include("customer.urls")),
     path("personal/", include("personal.urls")),

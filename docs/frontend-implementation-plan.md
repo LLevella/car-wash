@@ -105,6 +105,10 @@ Django templates. На production его можно отдавать через 
 
 Уже есть:
 
+- `GET /api/auth/csrf/`
+- `POST /api/auth/login/`
+- `POST /api/auth/logout/`
+- `GET /api/auth/me/`
 - `GET /api/car-wash/availability/`
 - `GET|POST /api/car-wash/bookings/`
 - `PATCH /api/car-wash/bookings/{id}/cancel/`
@@ -119,12 +123,8 @@ Django templates. На production его можно отдавать через 
 - dictionary routes under `/api/cars/`, `/api/customers/`, `/api/personal/`,
   `/api/car-wash/`.
 
-Нужные backend-доработки для полноценной SPA:
+Оставшиеся backend-доработки для полноценной SPA:
 
-- `GET /api/auth/me/` - текущий пользователь, роли, связанный customer id.
-- `POST /api/auth/login/` - login/password session auth.
-- `POST /api/auth/logout/` - завершение session.
-- `GET /api/auth/csrf/` - выдача CSRF cookie для unsafe methods.
 - единый формат ошибок для форм: field errors + general detail.
 - при отдельном домене frontend добавить CORS и CSRF trusted origins; при
   same-origin деплое этого можно избежать.
@@ -189,8 +189,8 @@ Django templates. На production его можно отдавать через 
 
 Backend prerequisites:
 
-- добавить auth endpoints из раздела 5;
-- покрыть их backend tests.
+- auth endpoints из раздела 5 уже добавлены и покрыты backend tests;
+- для separate frontend host настроить CORS и CSRF trusted origins.
 
 Критерии готовности:
 
@@ -335,8 +335,9 @@ Backend prerequisites:
 
 Риск: SPA не сможет нормально управлять session auth.
 
-Решение: первым backend prerequisite добавить `/api/auth/me/`, login, logout и
-csrf endpoint.
+Решение: `/api/auth/me/`, login, logout и csrf endpoint уже добавлены.
+Frontend должен вызывать `/api/auth/csrf/` перед unsafe methods и использовать
+session cookies.
 
 ### Разные форматы API
 

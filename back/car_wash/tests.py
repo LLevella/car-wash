@@ -7,7 +7,7 @@ from unittest import mock
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -26,7 +26,7 @@ from car_wash.models import (
     WasherShift,
     WashType,
 )
-from car_wash.permissions import CUSTOMER_GROUP, MANAGER_GROUP
+from car_wash.permissions import ADMIN_GROUP, CUSTOMER_GROUP, MANAGER_GROUP
 from car_wash.services.availability import get_available_slots
 from car_wash.services.booking import (
     BookingError,
@@ -139,6 +139,159 @@ class HealthCheckTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
         self.assertEqual(response["Cache-Control"], "no-store")
+
+
+class AuthApiTests(TestCase):
+    def setUp(self):
+        self.customer_group, _ = Group.objects.get_or_create(name=CUSTOMER_GROUP)
+        self.manager_group, _ = Group.objects.get_or_create(name=MANAGER_GROUP)
+        self.admin_group, _ = Group.objects.get_or_create(name=ADMIN_GROUP)
+
+        self.customer_user = User.objects.create_user(
+            username="anna",
+            password="password",
+            email="anna@example.com",
+            first_name="Анна",
+        )
+        self.customer_user.groups.add(self.customer_group)
+
+        car_type = CarType.objects.create(
+            name="Седан",
+            description="Легковой автомобиль",
+        )
+        car = Car.objects.create(number="A001AA", carType=car_type)
+        self.customer = Customer.objects.create(
+            user=self.customer_user,
+            name="Анна",
+            phoneNumber="+79990000000",
+            car=car,
+        )
+
+        self.manager_user = User.objects.create_user(
+            username="manager",
+            password="password",
+        )
+        self.manager_user.groups.add(self.manager_group)
+
+        self.admin_user = User.objects.create_user(
+            username="admin",
+            password="password",
+            is_staff=True,
+        )
+        self.admin_user.groups.add(self.admin_group)
+
+    def test_me_returns_anonymous_payload(self):
+        response = self.client.get(reverse("api:auth:me"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json()["data"],
+            {
+                "is_authenticated": False,
+                "user": None,
+                "roles": [],
+                "customer_id": None,
+            },
+        )
+
+    def test_csrf_endpoint_sets_cookie_and_returns_token(self):
+        response = self.client.get(reverse("api:auth:csrf"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["data"]["csrf_token"])
+        self.assertIn("csrftoken", response.cookies)
+
+    def test_login_returns_current_customer_user(self):
+        response = self.client.post(
+            reverse("api:auth:login"),
+            {
+                "username": "anna",
+                "password": "password",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertTrue(payload["is_authenticated"])
+        self.assertEqual(payload["user"]["username"], "anna")
+        self.assertEqual(payload["user"]["email"], "anna@example.com")
+        self.assertEqual(payload["roles"], [CUSTOMER_GROUP])
+        self.assertEqual(payload["customer_id"], self.customer.id)
+
+        me_response = self.client.get(reverse("api:auth:me"))
+        self.assertTrue(me_response.json()["data"]["is_authenticated"])
+
+    def test_login_works_with_csrf_token_when_checks_are_enforced(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_response = csrf_client.get(reverse("api:auth:csrf"))
+        csrf_token = csrf_response.cookies["csrftoken"].value
+
+        response = csrf_client.post(
+            reverse("api:auth:login"),
+            {"username": "anna", "password": "password"},
+            content_type="application/json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["data"]["is_authenticated"])
+
+    def test_login_returns_manager_and_admin_roles(self):
+        manager_response = self.client.post(
+            reverse("api:auth:login"),
+            {"username": "manager", "password": "password"},
+            content_type="application/json",
+        )
+        self.assertEqual(manager_response.status_code, 200)
+        self.assertEqual(manager_response.json()["data"]["roles"], [MANAGER_GROUP])
+
+        self.client.post(reverse("api:auth:logout"))
+        admin_response = self.client.post(
+            reverse("api:auth:login"),
+            {"username": "admin", "password": "password"},
+            content_type="application/json",
+        )
+        self.assertEqual(admin_response.status_code, 200)
+        self.assertEqual(
+            admin_response.json()["data"]["roles"],
+            [MANAGER_GROUP, ADMIN_GROUP],
+        )
+
+    def test_login_validates_required_fields(self):
+        response = self.client.post(
+            reverse("api:auth:login"),
+            {},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["detail"], "Заполните username и password.")
+        self.assertIn("username", payload["field_errors"])
+        self.assertIn("password", payload["field_errors"])
+
+    def test_login_rejects_bad_credentials(self):
+        response = self.client.post(
+            reverse("api:auth:login"),
+            {"username": "anna", "password": "bad"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["detail"], "Неверный username или password.")
+        self.assertIn("password", response.json()["field_errors"])
+
+    def test_logout_clears_session(self):
+        self.client.force_login(self.customer_user)
+
+        response = self.client.post(reverse("api:auth:logout"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["data"]["is_authenticated"])
+
+        me_response = self.client.get(reverse("api:auth:me"))
+        self.assertFalse(me_response.json()["data"]["is_authenticated"])
 
 
 class PricingServiceTests(TestCase):
