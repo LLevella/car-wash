@@ -1,3 +1,393 @@
-from django.test import TestCase
+from decimal import Decimal
+from datetime import date, datetime, time
 
-# Create your tests here.
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from cars.models import CarType
+from customer.models import Car, Customer
+from personal.models import City, District, Washer, WashStation
+from car_wash.models import (
+    Booking,
+    BookingAssignment,
+    DownPayment,
+    ResourceBlock,
+    WashBox,
+    WashCoast,
+    WashDuration,
+    WasherShift,
+    WashType,
+)
+from car_wash.services.availability import get_available_slots
+from car_wash.services.booking import (
+    BookingError,
+    cancel_booking,
+    create_booking,
+    reschedule_booking,
+)
+from car_wash.services.pricing import (
+    PricingConfigurationError,
+    build_pricing_quote,
+    calculate_down_payment,
+    get_wash_cost,
+    get_wash_duration,
+)
+
+
+def make_dt(day, hour, minute=0):
+    return timezone.make_aware(datetime.combine(day, time(hour, minute)))
+
+
+class PricingServiceTests(TestCase):
+    def setUp(self):
+        city = City.objects.create(name="Москва")
+        district = District.objects.create(name="Центральный")
+        self.station = WashStation.objects.create(
+            name="Мойка 1",
+            city=city,
+            district=district,
+            address="Тестовая улица, 1",
+        )
+        self.car_type = CarType.objects.create(
+            name="Седан",
+            description="Легковой автомобиль",
+        )
+        self.wash_type = WashType.objects.create(
+            name="Комплекс",
+            description="Комплексная мойка",
+        )
+
+    def test_build_pricing_quote_uses_station_dictionaries(self):
+        WashDuration.objects.create(
+            carType=self.car_type,
+            washType=self.wash_type,
+            washStation=self.station,
+            duration=45,
+        )
+        WashCoast.objects.create(
+            carType=self.car_type,
+            washType=self.wash_type,
+            washStation=self.station,
+            cost=Decimal("1200.00"),
+        )
+        DownPayment.objects.create(
+            washStation=self.station,
+            rate=Decimal("25.00"),
+        )
+
+        quote = build_pricing_quote(
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            wash_station=self.station,
+        )
+
+        self.assertEqual(quote.duration_minutes, 45)
+        self.assertEqual(quote.cost, Decimal("1200.00"))
+        self.assertEqual(quote.down_payment, Decimal("300.00"))
+        self.assertEqual(quote.residual, Decimal("900.00"))
+
+    def test_calculate_down_payment_rounds_to_money(self):
+        down_payment = calculate_down_payment(
+            cost=Decimal("999.99"),
+            rate=Decimal("12.50"),
+        )
+
+        self.assertEqual(down_payment, Decimal("125.00"))
+
+    def test_get_wash_duration_fails_when_dictionary_entry_is_missing(self):
+        with self.assertRaises(PricingConfigurationError):
+            get_wash_duration(
+                car_type=self.car_type,
+                wash_type=self.wash_type,
+                wash_station=self.station,
+            )
+
+    def test_get_wash_cost_fails_when_dictionary_entry_is_missing(self):
+        with self.assertRaises(PricingConfigurationError):
+            get_wash_cost(
+                car_type=self.car_type,
+                wash_type=self.wash_type,
+                wash_station=self.station,
+            )
+
+
+class AvailabilityServiceTests(TestCase):
+    def setUp(self):
+        city = City.objects.create(name="Москва")
+        district = District.objects.create(name="Центральный")
+        self.station = WashStation.objects.create(
+            name="Мойка 1",
+            city=city,
+            district=district,
+            address="Тестовая улица, 1",
+        )
+        self.car_type = CarType.objects.create(
+            name="Седан",
+            description="Легковой автомобиль",
+        )
+        self.wash_type = WashType.objects.create(
+            name="Комплекс",
+            description="Комплексная мойка",
+        )
+        WashDuration.objects.create(
+            carType=self.car_type,
+            washType=self.wash_type,
+            washStation=self.station,
+            duration=60,
+        )
+        WashCoast.objects.create(
+            carType=self.car_type,
+            washType=self.wash_type,
+            washStation=self.station,
+            cost=Decimal("1000.00"),
+        )
+        DownPayment.objects.create(
+            washStation=self.station,
+            rate=Decimal("25.00"),
+        )
+        self.box = WashBox.objects.create(
+            wash_station=self.station,
+            name="Бокс 1",
+        )
+        self.washer = Washer.objects.create(
+            name="Иван",
+            surname="Петров",
+        )
+        self.day = date(2026, 5, 6)
+        WasherShift.objects.create(
+            washer=self.washer,
+            wash_station=self.station,
+            starts_at=make_dt(self.day, 9),
+            ends_at=make_dt(self.day, 12),
+        )
+        self.car = Car.objects.create(number="A001AA", carType=self.car_type)
+        self.customer = Customer.objects.create(
+            name="Анна",
+            phoneNumber="+79990000000",
+            car=self.car,
+        )
+
+    def test_returns_slots_with_available_box_and_washer(self):
+        slots = get_available_slots(
+            wash_station=self.station,
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            day=self.day,
+            step_minutes=60,
+        )
+
+        self.assertEqual([slot.starts_at.hour for slot in slots], [9, 10, 11])
+        self.assertEqual(slots[0].boxes[0].id, self.box.id)
+        self.assertEqual(slots[0].washers[0].id, self.washer.id)
+
+    def test_active_booking_blocks_occupied_box(self):
+        self._create_booking(
+            starts_at=make_dt(self.day, 10),
+            ends_at=make_dt(self.day, 11),
+            status=Booking.Status.CONFIRMED,
+        )
+
+        slots = get_available_slots(
+            wash_station=self.station,
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            day=self.day,
+            step_minutes=60,
+        )
+
+        self.assertEqual([slot.starts_at.hour for slot in slots], [9, 11])
+
+    def test_cancelled_booking_does_not_block_box(self):
+        self._create_booking(
+            starts_at=make_dt(self.day, 10),
+            ends_at=make_dt(self.day, 11),
+            status=Booking.Status.CANCELLED,
+        )
+
+        slots = get_available_slots(
+            wash_station=self.station,
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            day=self.day,
+            step_minutes=60,
+        )
+
+        self.assertEqual([slot.starts_at.hour for slot in slots], [9, 10, 11])
+
+    def test_station_resource_block_hides_slots(self):
+        ResourceBlock.objects.create(
+            wash_station=self.station,
+            starts_at=make_dt(self.day, 10),
+            ends_at=make_dt(self.day, 11),
+            reason="Технический перерыв",
+        )
+
+        slots = get_available_slots(
+            wash_station=self.station,
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            day=self.day,
+            step_minutes=60,
+        )
+
+        self.assertEqual([slot.starts_at.hour for slot in slots], [9, 11])
+
+    def test_booking_assignment_blocks_washer(self):
+        booking = self._create_booking(
+            starts_at=make_dt(self.day, 10),
+            ends_at=make_dt(self.day, 11),
+            status=Booking.Status.CONFIRMED,
+        )
+        second_box = WashBox.objects.create(
+            wash_station=self.station,
+            name="Бокс 2",
+        )
+        booking.wash_box = second_box
+        booking.save()
+        BookingAssignment.objects.create(
+            booking=booking,
+            washer=self.washer,
+        )
+
+        slots = get_available_slots(
+            wash_station=self.station,
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            day=self.day,
+            step_minutes=60,
+        )
+
+        self.assertEqual([slot.starts_at.hour for slot in slots], [9, 11])
+
+    def test_availability_api_returns_slots(self):
+        url = reverse("api:car_wash:availability")
+
+        response = self.client.get(
+            url,
+            {
+                "station": self.station.id,
+                "car_type": self.car_type.id,
+                "wash_type": self.wash_type.id,
+                "date": self.day.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIn("data", payload)
+        self.assertTrue(payload["data"])
+
+    def test_create_booking_assigns_resources_and_pricing(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        self.assertEqual(booking.wash_box_id, self.box.id)
+        self.assertEqual(booking.ends_at, make_dt(self.day, 10))
+        self.assertEqual(booking.cost, Decimal("1000.00"))
+        self.assertEqual(booking.down_payment, Decimal("250.00"))
+        self.assertEqual(booking.residual, Decimal("750.00"))
+        self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
+
+    def test_create_booking_fails_when_resources_are_busy(self):
+        create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        another_car = Car.objects.create(number="B002BB", carType=self.car_type)
+        another_customer = Customer.objects.create(
+            name="Олег",
+            phoneNumber="+79990000001",
+            car=another_car,
+        )
+
+        with self.assertRaises(BookingError):
+            create_booking(
+                customer=another_customer,
+                car=another_car,
+                wash_station=self.station,
+                wash_type=self.wash_type,
+                starts_at=make_dt(self.day, 9),
+            )
+
+    def test_cancel_booking_marks_booking_cancelled(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        booking = cancel_booking(booking=booking)
+
+        self.assertEqual(booking.status, Booking.Status.CANCELLED)
+
+    def test_reschedule_booking_updates_time_and_keeps_assignments_valid(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        booking = reschedule_booking(
+            booking=booking,
+            starts_at=make_dt(self.day, 10),
+        )
+
+        self.assertEqual(booking.starts_at, make_dt(self.day, 10))
+        self.assertEqual(booking.ends_at, make_dt(self.day, 11))
+        self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
+
+    def test_booking_api_creates_booking(self):
+        url = reverse("api:car_wash:booking-list")
+
+        response = self.client.post(
+            url,
+            {
+                "customer": self.customer.id,
+                "car": self.car.id,
+                "wash_station": self.station.id,
+                "wash_type": self.wash_type.id,
+                "starts_at": make_dt(self.day, 9).isoformat(),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertEqual(payload["data"]["status"], Booking.Status.PENDING)
+        self.assertEqual(payload["data"]["wash_box"], self.box.id)
+        self.assertEqual(payload["data"]["washers"][0]["id"], self.washer.id)
+
+    def _create_booking(self, *, starts_at, ends_at, status):
+        car = Car.objects.create(number=f"TEST{Booking.objects.count()}", carType=self.car_type)
+        customer = Customer.objects.create(
+            name="Анна",
+            phoneNumber=f"+7999000000{Booking.objects.count()}",
+            car=car,
+        )
+
+        return Booking.objects.create(
+            customer=customer,
+            car=car,
+            wash_station=self.station,
+            wash_box=self.box,
+            wash_type=self.wash_type,
+            starts_at=starts_at,
+            ends_at=ends_at,
+            status=status,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )

@@ -1,9 +1,8 @@
 from django.db import models
-from django.contrib.auth.models import User
-from django.core.validators import MaxValueValidator, MinValueValidator
-from datetime import date
+from django.core.exceptions import ValidationError
 from cars.models import CarType
-from personal.models import WashStation
+from customer.models import Car, Customer
+from personal.models import Washer, WashStation
 
 
 class WashType(models.Model):
@@ -63,3 +62,309 @@ class DownPayment (models.Model):
     class Meta:
         verbose_name = "Процент аванса"
         verbose_name_plural = "Проценты аванса"
+
+
+class WashBox(models.Model):
+    """Бокс автомойки"""
+    wash_station = models.ForeignKey(
+        WashStation,
+        verbose_name="Станция мойки",
+        on_delete=models.PROTECT,
+        related_name="wash_boxes",
+    )
+    name = models.CharField("Название", max_length=100)
+    is_active = models.BooleanField("Активен", default=True)
+    description = models.TextField("Описание", blank=True)
+
+    def __str__(self):
+        return f"{self.wash_station}: {self.name}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wash_station", "name"],
+                name="unique_wash_box_per_station",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["wash_station", "is_active"],
+                name="wash_box_station_active_idx",
+            ),
+        ]
+        verbose_name = "Бокс мойки"
+        verbose_name_plural = "Боксы мойки"
+
+
+class WasherShift(models.Model):
+    """Рабочая смена мойщика"""
+    washer = models.ForeignKey(
+        Washer,
+        verbose_name="Мойщик",
+        on_delete=models.PROTECT,
+        related_name="shifts",
+    )
+    wash_station = models.ForeignKey(
+        WashStation,
+        verbose_name="Станция мойки",
+        on_delete=models.PROTECT,
+        related_name="washer_shifts",
+    )
+    starts_at = models.DateTimeField("Начало смены")
+    ends_at = models.DateTimeField("Окончание смены")
+    is_active = models.BooleanField("Активна", default=True)
+
+    def __str__(self):
+        return f"{self.washer}: {self.starts_at:%Y-%m-%d %H:%M}"
+
+    def clean(self):
+        if self.starts_at and self.ends_at and self.starts_at >= self.ends_at:
+            raise ValidationError(
+                {"ends_at": "Окончание смены должно быть позже начала."}
+            )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(ends_at__gt=models.F("starts_at")),
+                name="washer_shift_ends_after_start",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["wash_station", "starts_at", "ends_at"],
+                name="shift_station_time_idx",
+            ),
+            models.Index(
+                fields=["washer", "starts_at", "ends_at"],
+                name="shift_washer_time_idx",
+            ),
+        ]
+        verbose_name = "Смена мойщика"
+        verbose_name_plural = "Смены мойщиков"
+
+
+class Booking(models.Model):
+    """Запись клиента на мойку"""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Черновик"
+        PENDING = "pending", "Ожидает подтверждения"
+        CONFIRMED = "confirmed", "Подтверждена"
+        IN_PROGRESS = "in_progress", "В работе"
+        COMPLETED = "completed", "Завершена"
+        CANCELLED = "cancelled", "Отменена"
+        NO_SHOW = "no_show", "Клиент не приехал"
+
+    customer = models.ForeignKey(
+        Customer,
+        verbose_name="Заказчик",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+    )
+    car = models.ForeignKey(
+        Car,
+        verbose_name="Автомобиль",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+    )
+    wash_station = models.ForeignKey(
+        WashStation,
+        verbose_name="Станция мойки",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+    )
+    wash_box = models.ForeignKey(
+        WashBox,
+        verbose_name="Бокс",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+    )
+    wash_type = models.ForeignKey(
+        WashType,
+        verbose_name="Тип мойки",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+    )
+    starts_at = models.DateTimeField("Начало записи")
+    ends_at = models.DateTimeField("Окончание записи")
+    status = models.CharField(
+        "Статус",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    cost = models.DecimalField("Стоимость", max_digits=12, decimal_places=2)
+    down_payment = models.DecimalField(
+        "Предоплата",
+        max_digits=12,
+        decimal_places=2,
+    )
+    residual = models.DecimalField("Остаток", max_digits=12, decimal_places=2)
+    comment = models.TextField("Комментарий", blank=True)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлена", auto_now=True)
+
+    def __str__(self):
+        return f"{self.customer}: {self.starts_at:%Y-%m-%d %H:%M}"
+
+    def clean(self):
+        errors = {}
+
+        if self.starts_at and self.ends_at and self.starts_at >= self.ends_at:
+            errors["ends_at"] = "Окончание записи должно быть позже начала."
+
+        if self.customer_id and self.car_id and self.customer.car_id != self.car_id:
+            errors["car"] = "Автомобиль должен принадлежать заказчику."
+
+        if (
+            self.wash_box_id
+            and self.wash_station_id
+            and self.wash_box.wash_station_id != self.wash_station_id
+        ):
+            errors["wash_box"] = "Бокс должен относиться к выбранной станции."
+
+        if errors:
+            raise ValidationError(errors)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(ends_at__gt=models.F("starts_at")),
+                name="booking_ends_after_start",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["wash_station", "starts_at", "ends_at"],
+                name="booking_station_time_idx",
+            ),
+            models.Index(
+                fields=["wash_box", "starts_at", "ends_at"],
+                name="booking_box_time_idx",
+            ),
+            models.Index(
+                fields=["customer", "starts_at"],
+                name="booking_customer_time_idx",
+            ),
+            models.Index(fields=["status"], name="booking_status_idx"),
+        ]
+        verbose_name = "Запись на мойку"
+        verbose_name_plural = "Записи на мойку"
+
+
+class BookingAssignment(models.Model):
+    """Назначение мойщика на запись"""
+
+    class Role(models.TextChoices):
+        MAIN = "main", "Основной"
+        ASSISTANT = "assistant", "Помощник"
+
+    booking = models.ForeignKey(
+        Booking,
+        verbose_name="Запись",
+        on_delete=models.CASCADE,
+        related_name="assignments",
+    )
+    washer = models.ForeignKey(
+        Washer,
+        verbose_name="Мойщик",
+        on_delete=models.PROTECT,
+        related_name="booking_assignments",
+    )
+    role = models.CharField(
+        "Роль",
+        max_length=20,
+        choices=Role.choices,
+        default=Role.MAIN,
+    )
+
+    def __str__(self):
+        return f"{self.booking} - {self.washer}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["booking", "washer"],
+                name="unique_booking_washer_assignment",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["washer"], name="assignment_washer_idx"),
+        ]
+        verbose_name = "Назначение мойщика"
+        verbose_name_plural = "Назначения мойщиков"
+
+
+class ResourceBlock(models.Model):
+    """Блокировка станции, бокса или мойщика"""
+    wash_station = models.ForeignKey(
+        WashStation,
+        verbose_name="Станция мойки",
+        on_delete=models.PROTECT,
+        related_name="resource_blocks",
+    )
+    wash_box = models.ForeignKey(
+        WashBox,
+        verbose_name="Бокс",
+        on_delete=models.PROTECT,
+        related_name="resource_blocks",
+        blank=True,
+        null=True,
+    )
+    washer = models.ForeignKey(
+        Washer,
+        verbose_name="Мойщик",
+        on_delete=models.PROTECT,
+        related_name="resource_blocks",
+        blank=True,
+        null=True,
+    )
+    starts_at = models.DateTimeField("Начало блокировки")
+    ends_at = models.DateTimeField("Окончание блокировки")
+    reason = models.CharField("Причина", max_length=255)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+
+    def __str__(self):
+        resource = self.wash_box or self.washer or self.wash_station
+        return f"{resource}: {self.starts_at:%Y-%m-%d %H:%M}"
+
+    def clean(self):
+        errors = {}
+
+        if self.starts_at and self.ends_at and self.starts_at >= self.ends_at:
+            errors["ends_at"] = "Окончание блокировки должно быть позже начала."
+
+        if (
+            self.wash_box_id
+            and self.wash_station_id
+            and self.wash_box.wash_station_id != self.wash_station_id
+        ):
+            errors["wash_box"] = "Бокс должен относиться к выбранной станции."
+
+        if errors:
+            raise ValidationError(errors)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(ends_at__gt=models.F("starts_at")),
+                name="resource_block_ends_after_start",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["wash_station", "starts_at", "ends_at"],
+                name="block_station_time_idx",
+            ),
+            models.Index(
+                fields=["wash_box", "starts_at", "ends_at"],
+                name="block_box_time_idx",
+            ),
+            models.Index(
+                fields=["washer", "starts_at", "ends_at"],
+                name="block_washer_time_idx",
+            ),
+        ]
+        verbose_name = "Блокировка ресурса"
+        verbose_name_plural = "Блокировки ресурсов"
