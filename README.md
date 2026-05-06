@@ -32,7 +32,8 @@ The full target architecture and development plan are documented in
 - Django REST Framework 3.14
 - djangorestframework-jsonapi 6.0
 - django-filter 22
-- SQLite for development; PostgreSQL is planned for production use
+- psycopg2-binary for PostgreSQL deployments
+- SQLite for development; PostgreSQL is supported for production via `DATABASE_URL`
 
 ### Project Structure
 
@@ -42,6 +43,7 @@ car-wash/
 │   └── workflows/
 │       └── ci-cd.yml      # GitHub Actions CI/CD workflow
 ├── .coveragerc            # coverage settings for CI and local checks
+├── .env.example           # environment variable template
 ├── .gitignore             # local Python, coverage, and editor artifacts
 ├── back/                  # Django project
 │   ├── back/              # settings, urls, wsgi
@@ -93,6 +95,7 @@ After startup:
 
 - Admin: http://127.0.0.1:8000/admin/
 - API: http://127.0.0.1:8000/api/
+- Healthcheck: http://127.0.0.1:8000/health/
 
 Optional demo data:
 
@@ -111,6 +114,36 @@ Local authentication:
 - Use `/admin/` or the DRF browsable API login for session authentication.
 - `demo_customer` can access customer booking endpoints.
 - `demo_manager` and `demo_admin` can access manager endpoints.
+
+### Runtime Configuration
+
+Runtime settings are read from environment variables. See `.env.example` for a
+copyable template. The project does not load `.env` by itself; export variables
+in your shell, process manager, container, or hosting platform.
+
+| Variable | Purpose | Default |
+| -------- | ------- | ------- |
+| `DJANGO_SECRET_KEY` | Django secret key | development-only fallback |
+| `DJANGO_DEBUG` | Enables debug mode | `true` |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | local hosts in debug |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated CSRF trusted origins | empty |
+| `DATABASE_URL` | Database URL. Supports SQLite and PostgreSQL | `back/db.sqlite3` |
+| `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `false` |
+| `DJANGO_SESSION_COOKIE_SECURE` | Secure session cookie flag | `not DEBUG` |
+| `DJANGO_CSRF_COOKIE_SECURE` | Secure CSRF cookie flag | `not DEBUG` |
+| `DJANGO_SECURE_HSTS_SECONDS` | HSTS max age | `0` |
+| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | Include subdomains in HSTS | `false` |
+| `DJANGO_SECURE_HSTS_PRELOAD` | Enable HSTS preload flag | `false` |
+| `DJANGO_SECURE_PROXY_SSL_HEADER` | Trust `X-Forwarded-Proto: https` | `false` |
+
+PostgreSQL example:
+
+```bash
+export DJANGO_DEBUG=false
+export DJANGO_SECRET_KEY="<strong-secret>"
+export DJANGO_ALLOWED_HOSTS="carwash.example.com"
+export DATABASE_URL="postgres://carwash:password@localhost:5432/carwash"
+```
 
 ### API
 
@@ -207,7 +240,8 @@ GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
 - Runs on pushes and pull requests to `master` and `main`, and can be started
   manually with `workflow_dispatch`.
 - Uses Python 3.11, installs project dependencies, checks that migrations are
-  up to date, applies migrations, and runs Django tests with coverage.
+  up to date, applies migrations, runs Django deployment checks, and runs tests
+  with coverage.
 - Coverage must stay at or above 80%.
 - The deploy job runs only after successful CI on pushes to `master` or `main`.
   It is skipped until SSH deployment secrets are configured.
@@ -224,9 +258,9 @@ Deployment secrets:
 
 ### Development Status
 
-Stages 1-9 are complete: project setup, data model, pricing, availability,
+Stages 1-10 are complete: project setup, data model, pricing, availability,
 booking, the basic manager workspace, role-based access control, tests,
-demo data, and CI/CD. See
+demo data, CI/CD, and production-ready runtime configuration. See
 [docs/implementation-plan.md](docs/implementation-plan.md) for details and
 acceptance criteria.
 
@@ -258,7 +292,8 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 - Django REST Framework 3.14
 - djangorestframework-jsonapi 6.0
 - django-filter 22
-- SQLite для разработки; PostgreSQL планируется для production-среды
+- psycopg2-binary для PostgreSQL-деплоев
+- SQLite для разработки; PostgreSQL поддержан для production через `DATABASE_URL`
 
 ### Структура проекта
 
@@ -268,6 +303,7 @@ car-wash/
 │   └── workflows/
 │       └── ci-cd.yml      # GitHub Actions CI/CD workflow
 ├── .coveragerc            # настройки coverage для CI и локальных проверок
+├── .env.example           # шаблон переменных окружения
 ├── .gitignore             # локальные Python, coverage и editor-артефакты
 ├── back/                  # Django-проект
 │   ├── back/              # settings, urls, wsgi
@@ -319,6 +355,7 @@ python manage.py runserver
 
 - Админка: http://127.0.0.1:8000/admin/
 - API: http://127.0.0.1:8000/api/
+- Healthcheck: http://127.0.0.1:8000/health/
 
 Опциональные демо-данные:
 
@@ -337,6 +374,36 @@ python manage.py seed_demo_data
 - Для session auth используйте `/admin/` или login в browsable API DRF.
 - `demo_customer` может работать с клиентскими endpoints бронирования.
 - `demo_manager` и `demo_admin` могут работать с manager endpoints.
+
+### Runtime Configuration
+
+Runtime-настройки читаются из переменных окружения. В `.env.example` есть
+шаблон для копирования. Проект сам не загружает `.env`; задавайте переменные в
+shell, process manager, container или на hosting platform.
+
+| Переменная | Назначение | Значение по умолчанию |
+| ---------- | ---------- | --------------------- |
+| `DJANGO_SECRET_KEY` | Django secret key | development-only fallback |
+| `DJANGO_DEBUG` | Включает debug mode | `true` |
+| `DJANGO_ALLOWED_HOSTS` | Hosts через запятую | local hosts в debug |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | CSRF trusted origins через запятую | empty |
+| `DATABASE_URL` | URL базы. Поддерживает SQLite и PostgreSQL | `back/db.sqlite3` |
+| `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `false` |
+| `DJANGO_SESSION_COOKIE_SECURE` | Secure session cookie flag | `not DEBUG` |
+| `DJANGO_CSRF_COOKIE_SECURE` | Secure CSRF cookie flag | `not DEBUG` |
+| `DJANGO_SECURE_HSTS_SECONDS` | HSTS max age | `0` |
+| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | Include subdomains in HSTS | `false` |
+| `DJANGO_SECURE_HSTS_PRELOAD` | Enable HSTS preload flag | `false` |
+| `DJANGO_SECURE_PROXY_SSL_HEADER` | Trust `X-Forwarded-Proto: https` | `false` |
+
+Пример PostgreSQL:
+
+```bash
+export DJANGO_DEBUG=false
+export DJANGO_SECRET_KEY="<strong-secret>"
+export DJANGO_ALLOWED_HOSTS="carwash.example.com"
+export DATABASE_URL="postgres://carwash:password@localhost:5432/carwash"
+```
 
 ### API
 
@@ -434,8 +501,8 @@ GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
 - Запускается на push и pull request в `master` и `main`, а также вручную через
   `workflow_dispatch`.
 - Использует Python 3.11, устанавливает зависимости проекта, проверяет
-  актуальность миграций, применяет миграции и запускает Django-тесты с
-  coverage.
+  актуальность миграций, применяет миграции, запускает Django deployment checks
+  и Django-тесты с coverage.
 - Покрытие должно быть не ниже 80%.
 - Deploy job запускается только после успешного CI на push в `master` или
   `main`. Пока SSH secrets не настроены, деплой безопасно пропускается.
@@ -452,7 +519,8 @@ Secrets для деплоя:
 
 ### Статус разработки
 
-Этапы 1-9 выполнены: подготовка проекта, модель данных, расчет цены,
+Этапы 1-10 выполнены: подготовка проекта, модель данных, расчет цены,
 доступность, бронирование, базовый кабинет руководителя, ролевой доступ,
-тесты, демо-данные и CI/CD. Подробности и критерии готовности - в
+тесты, демо-данные, CI/CD и production-ready runtime configuration. Подробности
+и критерии готовности - в
 [docs/implementation-plan.md](docs/implementation-plan.md).

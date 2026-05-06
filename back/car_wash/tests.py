@@ -1,13 +1,17 @@
-from decimal import Decimal
 from datetime import date, datetime, time
+from decimal import Decimal
 from io import StringIO
+import os
+from pathlib import Path
+from unittest import mock
 
 from django.contrib.auth.models import Group, User
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from back.config import database_config, env_bool, env_int, env_list
 from cars.models import CarType
 from customer.models import Car, Customer
 from personal.models import City, District, Washer, WashStation
@@ -41,6 +45,100 @@ from car_wash.services.pricing import (
 
 def make_dt(day, hour, minute=0):
     return timezone.make_aware(datetime.combine(day, time(hour, minute)))
+
+
+class RuntimeConfigTests(SimpleTestCase):
+    @mock.patch.dict(
+        os.environ,
+        {
+            "CONFIG_TRUE": "yes",
+            "CONFIG_FALSE": "0",
+            "CONFIG_INVALID": "maybe",
+            "CONFIG_INT": "42",
+            "CONFIG_LIST": "localhost, 127.0.0.1, ,example.com",
+        },
+    )
+    def test_env_helpers_parse_common_values(self):
+        self.assertTrue(env_bool("CONFIG_TRUE"))
+        self.assertFalse(env_bool("CONFIG_FALSE", default=True))
+        self.assertTrue(env_bool("CONFIG_INVALID", default=True))
+        self.assertEqual(env_int("CONFIG_INT"), 42)
+        self.assertEqual(
+            env_list("CONFIG_LIST"),
+            ["localhost", "127.0.0.1", "example.com"],
+        )
+
+    def test_env_helpers_use_defaults_for_missing_or_empty_values(self):
+        with mock.patch.dict(os.environ, {"CONFIG_EMPTY_INT": ""}, clear=False):
+            self.assertEqual(env_bool("CONFIG_MISSING_BOOL", default=True), True)
+            self.assertEqual(env_int("CONFIG_MISSING_INT", default=7), 7)
+            self.assertEqual(env_int("CONFIG_EMPTY_INT", default=9), 9)
+            self.assertEqual(env_list("CONFIG_MISSING_LIST", ["localhost"]), ["localhost"])
+
+    def test_database_config_defaults_to_sqlite(self):
+        sqlite_path = Path("/tmp/car-wash.sqlite3")
+
+        config = database_config(sqlite_path, url="")
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.sqlite3")
+        self.assertEqual(config["NAME"], sqlite_path)
+
+    def test_database_config_parses_sqlite_url_variants(self):
+        sqlite_path = Path("/tmp/car-wash.sqlite3")
+
+        self.assertEqual(
+            database_config(sqlite_path, url="sqlite://")["NAME"],
+            sqlite_path,
+        )
+        self.assertEqual(
+            database_config(sqlite_path, url="sqlite:///:memory:")["NAME"],
+            ":memory:",
+        )
+        self.assertEqual(
+            database_config(sqlite_path, url="sqlite://server/shared.sqlite3")["NAME"],
+            Path("//server/shared.sqlite3"),
+        )
+
+    def test_database_config_parses_postgres_url(self):
+        config = database_config(
+            Path("/tmp/car-wash.sqlite3"),
+            url="postgres://carwash:p%40ss@db.example.com:5432/carwash?sslmode=require",
+        )
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "carwash")
+        self.assertEqual(config["USER"], "carwash")
+        self.assertEqual(config["PASSWORD"], "p@ss")
+        self.assertEqual(config["HOST"], "db.example.com")
+        self.assertEqual(config["PORT"], "5432")
+        self.assertEqual(config["OPTIONS"], {"sslmode": "require"})
+
+    def test_database_config_parses_postgres_url_without_options(self):
+        config = database_config(
+            Path("/tmp/car-wash.sqlite3"),
+            url="postgresql://carwash@db.example.com/carwash",
+        )
+
+        self.assertEqual(config["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual(config["NAME"], "carwash")
+        self.assertEqual(config["USER"], "carwash")
+        self.assertEqual(config["PASSWORD"], "")
+        self.assertEqual(config["HOST"], "db.example.com")
+        self.assertEqual(config["PORT"], "")
+        self.assertNotIn("OPTIONS", config)
+
+    def test_database_config_rejects_unsupported_scheme(self):
+        with self.assertRaises(ValueError):
+            database_config(Path("/tmp/car-wash.sqlite3"), url="mysql://db/carwash")
+
+
+class HealthCheckTests(TestCase):
+    def test_health_check_returns_ok(self):
+        response = self.client.get(reverse("health-check"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+        self.assertEqual(response["Cache-Control"], "no-store")
 
 
 class PricingServiceTests(TestCase):

@@ -617,6 +617,48 @@ back/
 - падение тестов или покрытия ниже 80% ломает CI;
 - деплой не выполняется без явно заданных SSH secrets.
 
+### Этап 10. Production-ready конфигурация
+
+Статус: выполнен.
+
+Задачи:
+
+- Убрать жесткую привязку runtime-настроек к локальному окружению.
+- Читать `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, security flags и базу данных
+  из переменных окружения.
+- Добавить поддержку PostgreSQL через `DATABASE_URL`.
+- Добавить healthcheck endpoint для мониторинга и деплоя.
+- Добавить production deployment check в CI.
+- Задокументировать переменные окружения.
+
+Реализовано:
+
+- Добавлен модуль `back.config` с helper-функциями `env_bool`, `env_int`,
+  `env_list` и `database_config`.
+- `settings.py` читает runtime-настройки из env-переменных с безопасными
+  dev-defaults.
+- Добавлена поддержка `DATABASE_URL` для SQLite и PostgreSQL.
+- В зависимости добавлен `psycopg2-binary` для PostgreSQL-деплоев.
+- Добавлен endpoint `GET /health/`, возвращающий `{"status": "ok"}`.
+- Добавлен `.env.example` с шаблоном переменных окружения.
+- CI запускает `python manage.py check --deploy --fail-level WARNING` с
+  production-like env.
+- Добавлены тесты парсинга runtime-конфигурации и healthcheck endpoint.
+
+Результат:
+
+- проект можно конфигурировать через process manager, container или hosting
+  platform без изменения кода;
+- CI проверяет не только тесты, но и базовую production-конфигурацию.
+
+Критерии готовности:
+
+- локальный запуск продолжает работать на SQLite без env-переменных;
+- production env может включить PostgreSQL через `DATABASE_URL`;
+- `/health/` доступен без авторизации;
+- `check --deploy --fail-level WARNING` проходит в CI при заданных production
+  переменных окружения.
+
 ## 11. Рекомендуемый порядок реализации MVP
 
 1. `WashBox`, `WasherShift`, `Booking`, `BookingAssignment`, `ResourceBlock`.
@@ -628,6 +670,7 @@ back/
 7. API руководителя.
 8. Тесты и демо-данные.
 9. CI/CD.
+10. Production-ready конфигурация.
 
 ## 12. Риски и решения
 

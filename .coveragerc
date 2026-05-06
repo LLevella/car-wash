@@ -1,12 +1,18 @@
 [run]
 branch = True
 source =
+    back
     car_wash
     cars
     customer
     personal
     main
 omit =
+    back/asgi.py
+    back/settings.py
+    back/urls.py
+    back/api_urls.py
+    back/wsgi.py
     */migrations/*
     */tests.py
     */admin.py
