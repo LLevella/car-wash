@@ -18,6 +18,11 @@ coverage.xml
 htmlcov/
 .pytest_cache/
 
+# Frontend
+front/node_modules/
+front/dist/
+front/coverage/
+
 # Editor and OS files
 .idea/
 .vscode/

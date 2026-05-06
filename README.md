@@ -60,6 +60,15 @@ car-wash/
 ├── docs/
 │   ├── frontend-implementation-plan.md
 │   └── implementation-plan.md
+├── front/                 # Vite + React + TypeScript frontend
+│   ├── src/
+│   │   ├── api/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── layouts/
+│   │   └── styles/
+│   └── package.json
 └── requirements.txt
 ```
 
@@ -100,6 +109,26 @@ Optional demo data:
 
 ```bash
 python manage.py seed_demo_data
+```
+
+Frontend development:
+
+```bash
+cd front
+npm install
+npm run dev
+```
+
+The Vite dev server runs on http://127.0.0.1:5173/ and proxies `/api` and
+`/health` to the Django server on http://127.0.0.1:8000/.
+
+Frontend checks:
+
+```bash
+cd front
+npm run lint
+npm test
+npm run build
 ```
 
 Demo users:
@@ -165,6 +194,18 @@ GET    /api/auth/csrf/
 POST   /api/auth/login/
 POST   /api/auth/logout/
 GET    /api/auth/me/
+```
+
+Dictionaries and customer profile:
+
+```text
+GET    /api/cars/brands/
+GET    /api/cars/models/
+GET    /api/cars/types/
+GET    /api/personal/stations/
+GET    /api/car-wash/wash-types/
+GET    /api/customers/me/
+GET    /api/customers/cars/
 ```
 
 Available slots:
@@ -252,9 +293,11 @@ GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
 - Uses Python 3.11, installs project dependencies, checks that migrations are
   up to date, applies migrations, runs Django deployment checks, and runs tests
   with coverage.
+- Uses Node.js for `front/`, installs npm dependencies, runs lint, formatting
+  check, Vitest, and production build.
 - Coverage must stay at or above 80%.
-- The deploy job runs only after successful CI on pushes to `master` or `main`.
-  It is skipped until SSH deployment secrets are configured.
+- The deploy job runs only after successful backend and frontend CI on pushes to
+  `master` or `main`. It is skipped until SSH deployment secrets are configured.
 
 Deployment secrets:
 
@@ -268,10 +311,10 @@ Deployment secrets:
 
 ### Development Status
 
-Stages 1-12 are complete: project setup, data model, pricing, availability,
+Stages 1-13 are complete: project setup, data model, pricing, availability,
 booking, the basic manager workspace, role-based access control, tests,
 demo data, CI/CD, production-ready runtime configuration, model cleanup, and
-SPA auth API. See
+SPA auth API, and frontend dictionary API. See
 [docs/implementation-plan.md](docs/implementation-plan.md) for details and
 acceptance criteria.
 
@@ -331,6 +374,15 @@ car-wash/
 ├── docs/
 │   ├── frontend-implementation-plan.md
 │   └── implementation-plan.md
+├── front/                 # frontend на Vite + React + TypeScript
+│   ├── src/
+│   │   ├── api/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── layouts/
+│   │   └── styles/
+│   └── package.json
 └── requirements.txt
 ```
 
@@ -371,6 +423,26 @@ python manage.py runserver
 
 ```bash
 python manage.py seed_demo_data
+```
+
+Frontend-разработка:
+
+```bash
+cd front
+npm install
+npm run dev
+```
+
+Vite dev server запускается на http://127.0.0.1:5173/ и проксирует `/api` и
+`/health` в Django server на http://127.0.0.1:8000/.
+
+Frontend-проверки:
+
+```bash
+cd front
+npm run lint
+npm test
+npm run build
 ```
 
 Демо-пользователи:
@@ -436,6 +508,18 @@ GET    /api/auth/csrf/
 POST   /api/auth/login/
 POST   /api/auth/logout/
 GET    /api/auth/me/
+```
+
+Справочники и профиль клиента:
+
+```text
+GET    /api/cars/brands/
+GET    /api/cars/models/
+GET    /api/cars/types/
+GET    /api/personal/stations/
+GET    /api/car-wash/wash-types/
+GET    /api/customers/me/
+GET    /api/customers/cars/
 ```
 
 Расчет свободных слотов:
@@ -524,9 +608,12 @@ GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
 - Использует Python 3.11, устанавливает зависимости проекта, проверяет
   актуальность миграций, применяет миграции, запускает Django deployment checks
   и Django-тесты с coverage.
+- Использует Node.js для `front/`, устанавливает npm-зависимости, запускает
+  lint, проверку форматирования, Vitest и production build.
 - Покрытие должно быть не ниже 80%.
-- Deploy job запускается только после успешного CI на push в `master` или
-  `main`. Пока SSH secrets не настроены, деплой безопасно пропускается.
+- Deploy job запускается только после успешного backend и frontend CI на push в
+  `master` или `main`. Пока SSH secrets не настроены, деплой безопасно
+  пропускается.
 
 Secrets для деплоя:
 
@@ -540,8 +627,9 @@ Secrets для деплоя:
 
 ### Статус разработки
 
-Этапы 1-12 выполнены: подготовка проекта, модель данных, расчет цены,
+Этапы 1-13 выполнены: подготовка проекта, модель данных, расчет цены,
 доступность, бронирование, базовый кабинет руководителя, ролевой доступ,
 тесты, демо-данные, CI/CD, production-ready runtime configuration, cleanup
-моделей и SPA auth API. Подробности и критерии готовности - в
+моделей, SPA auth API и frontend dictionary API. Подробности и критерии
+готовности - в
 [docs/implementation-plan.md](docs/implementation-plan.md).

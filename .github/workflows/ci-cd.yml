@@ -74,9 +74,46 @@ jobs:
           name: coverage-xml
           path: coverage.xml
 
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Install dependencies
+        working-directory: front
+        run: npm ci
+
+      - name: Run lint
+        working-directory: front
+        run: npm run lint
+
+      - name: Check formatting
+        working-directory: front
+        run: npm run format
+
+      - name: Run tests
+        working-directory: front
+        run: npm test
+
+      - name: Build frontend
+        working-directory: front
+        run: npm run build
+
   deploy:
     name: Deploy
-    needs: django
+    needs:
+      - django
+      - frontend
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') }}
     environment: production
