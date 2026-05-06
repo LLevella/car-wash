@@ -9,7 +9,9 @@ booking and manager-side workday planning: bay loading, washer shifts, order
 assignments, rescheduling, cancellations, and resource blocks.
 
 The full target architecture and development plan are documented in
-[docs/implementation-plan.md](docs/implementation-plan.md).
+[docs/implementation-plan.md](docs/implementation-plan.md). The frontend plan
+is documented in
+[docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
 
 ### Features
 
@@ -56,6 +58,7 @@ car-wash/
 │   ├── manage.py
 │   └── db.sqlite3
 ├── docs/
+│   ├── frontend-implementation-plan.md
 │   └── implementation-plan.md
 └── requirements.txt
 ```
@@ -267,7 +270,9 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 мойщиков, назначения на заказы, переносы, отмены и блокировки ресурсов.
 
 Полная целевая архитектура и план разработки описаны в
-[docs/implementation-plan.md](docs/implementation-plan.md).
+[docs/implementation-plan.md](docs/implementation-plan.md). План frontend
+описан в
+[docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
 
 ### Возможности
 
@@ -312,6 +317,7 @@ car-wash/
 │   ├── manage.py
 │   └── db.sqlite3
 ├── docs/
+│   ├── frontend-implementation-plan.md
 │   └── implementation-plan.md
 └── requirements.txt
 ```
