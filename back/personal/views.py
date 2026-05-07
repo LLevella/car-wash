@@ -1,7 +1,7 @@
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from back.api import success_response
 from personal.models import WashStation
 
 
@@ -14,23 +14,21 @@ class WashStationListView(APIView):
             "district__name",
             "name",
         )
-        return Response(
-            {
-                "data": [
-                    {
-                        "id": station.id,
-                        "name": station.name,
-                        "address": station.address,
-                        "city": {
-                            "id": station.city_id,
-                            "name": station.city.name,
-                        },
-                        "district": {
-                            "id": station.district_id,
-                            "name": station.district.name,
-                        },
-                    }
-                    for station in stations
-                ]
-            }
+        return success_response(
+            [
+                {
+                    "id": station.id,
+                    "name": station.name,
+                    "address": station.address,
+                    "city": {
+                        "id": station.city_id,
+                        "name": station.city.name,
+                    },
+                    "district": {
+                        "id": station.district_id,
+                        "name": station.district.name,
+                    },
+                }
+                for station in stations
+            ]
         )

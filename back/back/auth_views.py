@@ -5,9 +5,9 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from back.api import error_response, success_response
 from car_wash.permissions import (
     ADMIN_GROUP,
     CUSTOMER_GROUP,
@@ -23,7 +23,7 @@ class CurrentUserView(APIView):
     permission_classes = (AllowAny,)
 
     def get(self, request):
-        return Response({"data": current_user_payload(request.user)})
+        return success_response(current_user_payload(request.user))
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -59,7 +59,7 @@ class LoginView(APIView):
             )
 
         login(request, user)
-        return Response({"data": current_user_payload(user)})
+        return success_response(current_user_payload(user))
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -68,7 +68,7 @@ class LogoutView(APIView):
 
     def post(self, request):
         logout(request)
-        return Response({"data": current_user_payload(request.user)})
+        return success_response(current_user_payload(request.user))
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -76,7 +76,7 @@ class CsrfTokenView(APIView):
     permission_classes = (AllowAny,)
 
     def get(self, request):
-        return Response({"data": {"csrf_token": get_token(request)}})
+        return success_response({"csrf_token": get_token(request)})
 
 
 def current_user_payload(user):
@@ -115,13 +115,3 @@ def user_roles(user):
     if is_admin_user(user):
         roles.append(ADMIN_GROUP)
     return roles
-
-
-def error_response(detail, *, field_errors=None, status_code=status.HTTP_400_BAD_REQUEST):
-    return Response(
-        {
-            "detail": detail,
-            "field_errors": field_errors or {},
-        },
-        status=status_code,
-    )

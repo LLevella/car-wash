@@ -6,11 +6,18 @@ from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth.models import Group, User
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from back.api import (
+    NON_FIELD_ERRORS,
+    error_response,
+    success_response,
+    validation_error_response,
+)
 from back.config import database_config, env_bool, env_int, env_list
 from cars.models import CarBrand, CarModel, CarType
 from customer.models import Car, Customer
@@ -141,6 +148,55 @@ class HealthCheckTests(TestCase):
         self.assertEqual(response["Cache-Control"], "no-store")
 
 
+class ApiResponseHelperTests(SimpleTestCase):
+    def test_success_response_wraps_data_payload(self):
+        response = success_response({"id": 1})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {"data": {"id": 1}})
+
+    def test_error_response_uses_standard_contract(self):
+        response = error_response(
+            "Нет доступа.",
+            field_errors={"station": "Недоступная станция."},
+            status_code=403,
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["detail"], "Нет доступа.")
+        self.assertEqual(response.data["code"], "forbidden")
+        self.assertEqual(
+            response.data["field_errors"],
+            {"station": ["Недоступная станция."]},
+        )
+
+    def test_validation_error_response_normalizes_model_errors(self):
+        response = validation_error_response(
+            ValidationError(
+                {
+                    "starts_at": ["Начало обязательно."],
+                    "__all__": ["Интервал некорректен."],
+                }
+            )
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data["code"], "validation_error")
+        self.assertEqual(response.data["field_errors"]["starts_at"], ["Начало обязательно."])
+        self.assertEqual(
+            response.data["field_errors"]["__all__"],
+            ["Интервал некорректен."],
+        )
+
+    def test_validation_error_response_normalizes_non_field_errors(self):
+        response = validation_error_response(ValidationError("Некорректное значение."))
+
+        self.assertEqual(
+            response.data["field_errors"][NON_FIELD_ERRORS],
+            ["Некорректное значение."],
+        )
+
+
 class AuthApiTests(TestCase):
     def setUp(self):
         self.customer_group, _ = Group.objects.get_or_create(name=CUSTOMER_GROUP)
@@ -268,6 +324,7 @@ class AuthApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         payload = response.json()
         self.assertEqual(payload["detail"], "Заполните username и password.")
+        self.assertEqual(payload["code"], "bad_request")
         self.assertIn("username", payload["field_errors"])
         self.assertIn("password", payload["field_errors"])
 
@@ -280,6 +337,7 @@ class AuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(response.json()["detail"], "Неверный username или password.")
+        self.assertEqual(response.json()["code"], "unauthorized")
         self.assertIn("password", response.json()["field_errors"])
 
     def test_logout_clears_session(self):

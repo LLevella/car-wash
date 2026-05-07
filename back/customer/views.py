@@ -1,7 +1,7 @@
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from back.api import success_response
 from customer.models import Customer
 from car_wash.permissions import is_manager_user
 
@@ -12,9 +12,9 @@ class CurrentCustomerView(APIView):
     def get(self, request):
         customer = _customer_for_request(request)
         if customer is None:
-            return Response({"data": None})
+            return success_response(None)
 
-        return Response({"data": customer_payload(customer)})
+        return success_response(customer_payload(customer))
 
 
 class CustomerCarListView(APIView):
@@ -23,9 +23,9 @@ class CustomerCarListView(APIView):
     def get(self, request):
         customer = _customer_for_request(request)
         if customer is None:
-            return Response({"data": []})
+            return success_response([])
 
-        return Response({"data": [car_payload(customer.car)]})
+        return success_response([car_payload(customer.car)])
 
 
 def _customer_for_request(request):
