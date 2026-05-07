@@ -2,10 +2,9 @@ from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date, parse_datetime
 
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from back.api import success_response
+from back.api import error_response, success_response
 from cars.models import CarType
 from customer.models import Car, Customer
 from personal.models import Washer, WashStation
@@ -53,14 +52,13 @@ class AvailabilityView(APIView):
         day = parse_date(request.query_params.get("date", ""))
 
         if not station_id or not car_type_id or not wash_type_id or day is None:
-            return Response(
-                {
-                    "detail": (
-                        "Параметры station, car_type, wash_type и date обязательны. "
-                        "Дата должна быть в формате YYYY-MM-DD."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                (
+                    "Параметры station, car_type, wash_type и date обязательны. "
+                    "Дата должна быть в формате YYYY-MM-DD."
+                ),
+                field_errors=_availability_field_errors(request),
+                code="validation_error",
             )
 
         wash_station = get_object_or_404(WashStation, pk=station_id)
@@ -75,12 +73,9 @@ class AvailabilityView(APIView):
                 day=day,
             )
         except PricingConfigurationError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return error_response(str(exc), code="pricing_configuration_error")
 
-        return Response({"data": [slot.as_dict() for slot in slots]})
+        return success_response([slot.as_dict() for slot in slots])
 
 
 class BookingListCreateView(APIView):
@@ -101,10 +96,10 @@ class BookingListCreateView(APIView):
         elif not is_manager_user(request.user):
             customer = get_request_customer(request.user)
             if customer is None:
-                return Response({"data": []})
+                return success_response([])
             bookings = bookings.filter(customer=customer)
 
-        return Response({"data": [_booking_payload(booking) for booking in bookings]})
+        return success_response([_booking_payload(booking) for booking in bookings])
 
     def post(self, request):
         try:
@@ -118,9 +113,9 @@ class BookingListCreateView(APIView):
             wash_type = get_object_or_404(WashType, pk=request.data.get("wash_type"))
 
             if not can_access_customer(request.user, customer):
-                return Response(
-                    {"detail": "Нет доступа к этому заказчику."},
-                    status=status.HTTP_403_FORBIDDEN,
+                return error_response(
+                    "Нет доступа к этому заказчику.",
+                    status_code=status.HTTP_403_FORBIDDEN,
                 )
 
             if (
@@ -130,9 +125,14 @@ class BookingListCreateView(APIView):
                     or request.data.get("washers") is not None
                 )
             ):
-                return Response(
-                    {"detail": "Назначать бокс и мойщиков может только менеджер."},
-                    status=status.HTTP_403_FORBIDDEN,
+                return error_response(
+                    "Назначать бокс и мойщиков может только менеджер.",
+                    field_errors={
+                        "wash_box": ["Назначать бокс может только менеджер."],
+                        "washers": ["Назначать мойщиков может только менеджер."],
+                    },
+                    code="manager_assignment_required",
+                    status_code=status.HTTP_403_FORBIDDEN,
                 )
 
             wash_box = _get_optional_wash_box(request.data.get("wash_box"))
@@ -147,15 +147,16 @@ class BookingListCreateView(APIView):
                 wash_box=wash_box,
                 washers=washers,
             )
-        except (BookingError, PricingConfigurationError, ValueError) as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        except ValueError as exc:
+            return _starts_at_error_response(exc)
+        except PricingConfigurationError as exc:
+            return error_response(str(exc), code="pricing_configuration_error")
+        except BookingError as exc:
+            return error_response(str(exc), code="booking_error")
 
-        return Response(
-            {"data": _booking_payload(booking)},
-            status=status.HTTP_201_CREATED,
+        return success_response(
+            _booking_payload(booking),
+            status_code=status.HTTP_201_CREATED,
         )
 
 
@@ -166,20 +167,17 @@ class BookingCancelView(APIView):
         booking = get_object_or_404(Booking, pk=pk)
 
         if not can_access_booking(request.user, booking):
-            return Response(
-                {"detail": "Нет доступа к этой записи."},
-                status=status.HTTP_403_FORBIDDEN,
+            return error_response(
+                "Нет доступа к этой записи.",
+                status_code=status.HTTP_403_FORBIDDEN,
             )
 
         try:
             booking = cancel_booking(booking=booking)
         except BookingError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return error_response(str(exc), code="booking_error")
 
-        return Response({"data": _booking_payload(booking)})
+        return success_response(_booking_payload(booking))
 
 
 class BookingRescheduleView(APIView):
@@ -189,9 +187,9 @@ class BookingRescheduleView(APIView):
         booking = get_object_or_404(Booking, pk=pk)
 
         if not can_access_booking(request.user, booking):
-            return Response(
-                {"detail": "Нет доступа к этой записи."},
-                status=status.HTTP_403_FORBIDDEN,
+            return error_response(
+                "Нет доступа к этой записи.",
+                status_code=status.HTTP_403_FORBIDDEN,
             )
 
         try:
@@ -202,9 +200,14 @@ class BookingRescheduleView(APIView):
                     or request.data.get("washers") is not None
                 )
             ):
-                return Response(
-                    {"detail": "Назначать бокс и мойщиков может только менеджер."},
-                    status=status.HTTP_403_FORBIDDEN,
+                return error_response(
+                    "Назначать бокс и мойщиков может только менеджер.",
+                    field_errors={
+                        "wash_box": ["Назначать бокс может только менеджер."],
+                        "washers": ["Назначать мойщиков может только менеджер."],
+                    },
+                    code="manager_assignment_required",
+                    status_code=status.HTTP_403_FORBIDDEN,
                 )
 
             starts_at = _parse_required_datetime(request.data.get("starts_at"))
@@ -216,13 +219,14 @@ class BookingRescheduleView(APIView):
                 wash_box=wash_box,
                 washers=washers,
             )
-        except (BookingError, PricingConfigurationError, ValueError) as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        except ValueError as exc:
+            return _starts_at_error_response(exc)
+        except PricingConfigurationError as exc:
+            return error_response(str(exc), code="pricing_configuration_error")
+        except BookingError as exc:
+            return error_response(str(exc), code="booking_error")
 
-        return Response({"data": _booking_payload(booking)})
+        return success_response(_booking_payload(booking))
 
 
 class BookingStatusView(APIView):
@@ -237,12 +241,39 @@ class BookingStatusView(APIView):
                 status=request.data.get("status"),
             )
         except BookingError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                str(exc),
+                field_errors={"status": [str(exc)]},
+                code="validation_error",
             )
 
-        return Response({"data": _booking_payload(booking)})
+        return success_response(_booking_payload(booking))
+
+
+def _availability_field_errors(request):
+    field_errors = {}
+    if not request.query_params.get("station"):
+        field_errors["station"] = ["Укажите станцию."]
+    if not request.query_params.get("car_type"):
+        field_errors["car_type"] = ["Укажите тип автомобиля."]
+    if not request.query_params.get("wash_type"):
+        field_errors["wash_type"] = ["Укажите тип мойки."]
+
+    date_value = request.query_params.get("date", "")
+    if not date_value:
+        field_errors["date"] = ["Укажите дату."]
+    elif parse_date(date_value) is None:
+        field_errors["date"] = ["Дата должна быть в формате YYYY-MM-DD."]
+
+    return field_errors
+
+
+def _starts_at_error_response(exc):
+    return error_response(
+        str(exc),
+        field_errors={"starts_at": [str(exc)]},
+        code="validation_error",
+    )
 
 
 def _parse_required_datetime(value):

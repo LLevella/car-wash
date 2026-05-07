@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import exception_handler as drf_exception_handler
 
 
 DEFAULT_ERROR_DETAIL = "Запрос завершился ошибкой."
@@ -29,13 +30,28 @@ def error_response(
     status_code=status.HTTP_400_BAD_REQUEST,
 ):
     return Response(
-        {
-            "detail": str(detail or DEFAULT_ERROR_DETAIL),
-            "field_errors": normalize_field_errors(field_errors),
-            "code": code or ERROR_CODES_BY_STATUS.get(status_code, "api_error"),
-        },
+        error_payload(
+            detail,
+            field_errors=field_errors,
+            code=code,
+            status_code=status_code,
+        ),
         status=status_code,
     )
+
+
+def error_payload(
+    detail,
+    *,
+    field_errors=None,
+    code=None,
+    status_code=status.HTTP_400_BAD_REQUEST,
+):
+    return {
+        "detail": str(detail or DEFAULT_ERROR_DETAIL),
+        "field_errors": normalize_field_errors(field_errors),
+        "code": code or ERROR_CODES_BY_STATUS.get(status_code, "api_error"),
+    }
 
 
 def validation_error_response(
@@ -62,6 +78,31 @@ def validation_field_errors(exc):
     return {NON_FIELD_ERRORS: normalize_messages(str(exc))}
 
 
+def exception_handler(exc, context):
+    response = drf_exception_handler(exc, context)
+    if response is None:
+        return None
+
+    response.data = exception_error_payload(response.data, response.status_code)
+    return response
+
+
+def exception_error_payload(data, status_code):
+    if isinstance(data, dict) and "detail" not in data:
+        return error_payload(
+            "Проверьте поля формы.",
+            field_errors=data,
+            code="validation_error",
+            status_code=status_code,
+        )
+
+    return error_payload(
+        detail=_exception_detail(data),
+        code=_exception_code(data, status_code),
+        status_code=status_code,
+    )
+
+
 def normalize_field_errors(field_errors):
     if not field_errors:
         return {}
@@ -83,3 +124,21 @@ def normalize_messages(messages):
         return [str(message) for message in messages]
 
     return [str(messages)]
+
+
+def _exception_detail(data):
+    if isinstance(data, dict):
+        data = data.get("detail", DEFAULT_ERROR_DETAIL)
+
+    messages = normalize_messages(data)
+    return " ".join(messages) if messages else DEFAULT_ERROR_DETAIL
+
+
+def _exception_code(data, status_code):
+    if isinstance(data, dict):
+        data = data.get("detail")
+
+    if hasattr(data, "code"):
+        return str(data.code)
+
+    return ERROR_CODES_BY_STATUS.get(status_code, "api_error")

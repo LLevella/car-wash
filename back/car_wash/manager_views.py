@@ -6,9 +6,9 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
 from rest_framework import status
-from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from back.api import error_response, success_response, validation_error_response
 from personal.models import Washer, WashStation
 
 from car_wash.models import Booking, ResourceBlock, WashBox, WasherShift
@@ -28,9 +28,10 @@ class ManagerScheduleView(APIView):
         try:
             wash_station, day = _get_station_and_day(request)
         except ValueError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                str(exc),
+                field_errors=_station_day_field_errors(request),
+                code="validation_error",
             )
 
         day_start, day_end = _day_bounds(day)
@@ -60,22 +61,20 @@ class ManagerScheduleView(APIView):
             .order_by("starts_at")
         )
 
-        return Response(
+        return success_response(
             {
-                "data": {
-                    "station": wash_station.id,
-                    "date": day.isoformat(),
-                    "boxes": [_box_payload(box) for box in boxes],
-                    "shifts": [_shift_payload(shift) for shift in shifts],
-                    "resource_blocks": [
-                        _resource_block_payload(block)
-                        for block in blocks
-                    ],
-                    "bookings": [
-                        _booking_payload(booking)
-                        for booking in bookings.order_by("starts_at", "wash_box__name")
-                    ],
-                }
+                "station": wash_station.id,
+                "date": day.isoformat(),
+                "boxes": [_box_payload(box) for box in boxes],
+                "shifts": [_shift_payload(shift) for shift in shifts],
+                "resource_blocks": [
+                    _resource_block_payload(block)
+                    for block in blocks
+                ],
+                "bookings": [
+                    _booking_payload(booking)
+                    for booking in bookings.order_by("starts_at", "wash_box__name")
+                ],
             }
         )
 
@@ -103,13 +102,11 @@ class ManagerBookingListView(APIView):
             day_start, day_end = _day_bounds(day)
             bookings = bookings.filter(starts_at__lt=day_end, ends_at__gt=day_start)
 
-        return Response(
-            {
-                "data": [
-                    _booking_payload(booking)
-                    for booking in bookings.distinct()
-                ]
-            }
+        return success_response(
+            [
+                _booking_payload(booking)
+                for booking in bookings.distinct()
+            ]
         )
 
 
@@ -128,12 +125,13 @@ class ManagerBookingAssignView(APIView):
                 washers=washers,
             )
         except (BookingError, ValueError) as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                str(exc),
+                field_errors=_assignment_field_errors(exc),
+                code="validation_error",
             )
 
-        return Response({"data": _booking_payload(booking)})
+        return success_response(_booking_payload(booking))
 
 
 class ManagerBookingStatusView(APIView):
@@ -148,12 +146,13 @@ class ManagerBookingStatusView(APIView):
                 status=request.data.get("status"),
             )
         except BookingError as exc:
-            return Response(
-                {"detail": str(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
+            return error_response(
+                str(exc),
+                field_errors={"status": [str(exc)]},
+                code="validation_error",
             )
 
-        return Response({"data": _booking_payload(booking)})
+        return success_response(_booking_payload(booking))
 
 
 class ManagerShiftListCreateView(APIView):
@@ -174,7 +173,7 @@ class ManagerShiftListCreateView(APIView):
             day_start, day_end = _day_bounds(day)
             shifts = shifts.filter(starts_at__lt=day_end, ends_at__gt=day_start)
 
-        return Response({"data": [_shift_payload(shift) for shift in shifts]})
+        return success_response([_shift_payload(shift) for shift in shifts])
 
     def post(self, request):
         try:
@@ -196,15 +195,14 @@ class ManagerShiftListCreateView(APIView):
             )
             shift.full_clean()
             shift.save()
-        except (ValidationError, ValueError) as exc:
-            return Response(
-                {"detail": _error_detail(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        except ValidationError as exc:
+            return validation_error_response(exc)
+        except ValueError as exc:
+            return _datetime_error_response(exc)
 
-        return Response(
-            {"data": _shift_payload(shift)},
-            status=status.HTTP_201_CREATED,
+        return success_response(
+            _shift_payload(shift),
+            status_code=status.HTTP_201_CREATED,
         )
 
 
@@ -226,7 +224,7 @@ class ManagerResourceBlockListCreateView(APIView):
             day_start, day_end = _day_bounds(day)
             blocks = blocks.filter(starts_at__lt=day_end, ends_at__gt=day_start)
 
-        return Response({"data": [_resource_block_payload(block) for block in blocks]})
+        return success_response([_resource_block_payload(block) for block in blocks])
 
     def post(self, request):
         try:
@@ -249,15 +247,14 @@ class ManagerResourceBlockListCreateView(APIView):
             )
             block.full_clean()
             block.save()
-        except (ValidationError, ValueError) as exc:
-            return Response(
-                {"detail": _error_detail(exc)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        except ValidationError as exc:
+            return validation_error_response(exc)
+        except ValueError as exc:
+            return _datetime_error_response(exc)
 
-        return Response(
-            {"data": _resource_block_payload(block)},
-            status=status.HTTP_201_CREATED,
+        return success_response(
+            _resource_block_payload(block),
+            status_code=status.HTTP_201_CREATED,
         )
 
 
@@ -281,6 +278,20 @@ def _get_station_and_day(request):
     return get_object_or_404(WashStation, pk=station_id), day
 
 
+def _station_day_field_errors(request):
+    field_errors = {}
+    if not request.query_params.get("station"):
+        field_errors["station"] = ["Укажите станцию."]
+
+    date_value = request.query_params.get("date", "")
+    if not date_value:
+        field_errors["date"] = ["Укажите дату."]
+    elif parse_date(date_value) is None:
+        field_errors["date"] = ["Дата должна быть в формате YYYY-MM-DD."]
+
+    return field_errors
+
+
 def _day_bounds(day):
     day_start = timezone.make_aware(
         datetime.combine(day, time.min),
@@ -299,6 +310,24 @@ def _parse_required_datetime(value, *, field_name):
         parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
 
     return parsed
+
+
+def _datetime_error_response(exc):
+    message = str(exc)
+    field_name = "starts_at" if "starts_at" in message else "ends_at"
+    return error_response(
+        message,
+        field_errors={field_name: [message]},
+        code="validation_error",
+    )
+
+
+def _assignment_field_errors(exc):
+    message = str(exc)
+    if "washer" in message or "мойщик" in message or "мойщиков" in message:
+        return {"washers": [message]}
+
+    return {}
 
 
 def _get_optional_wash_box(value):
@@ -358,11 +387,3 @@ def _resource_block_payload(block):
         "ends_at": block.ends_at.isoformat(),
         "reason": block.reason,
     }
-
-
-def _error_detail(exc):
-    if hasattr(exc, "message_dict"):
-        return exc.message_dict
-    if hasattr(exc, "messages"):
-        return exc.messages
-    return str(exc)

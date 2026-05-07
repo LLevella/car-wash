@@ -710,6 +710,17 @@ class AvailabilityServiceTests(TestCase):
         self.assertIn("data", payload)
         self.assertTrue(payload["data"])
 
+    def test_availability_api_validates_required_query_params(self):
+        response = self.client.get(reverse("api:car_wash:availability"))
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("station", payload["field_errors"])
+        self.assertIn("car_type", payload["field_errors"])
+        self.assertIn("wash_type", payload["field_errors"])
+        self.assertIn("date", payload["field_errors"])
+
     def test_create_booking_assigns_resources_and_pricing(self):
         booking = create_booking(
             customer=self.customer,
@@ -809,6 +820,10 @@ class AvailabilityServiceTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertIn("detail", payload)
+        self.assertEqual(payload["field_errors"], {})
+        self.assertIn("code", payload)
 
     def test_customer_booking_list_returns_only_own_bookings(self):
         own_booking = create_booking(
@@ -860,6 +875,9 @@ class AvailabilityServiceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertEqual(payload["code"], "forbidden")
+        self.assertEqual(payload["field_errors"], {})
 
     def test_customer_cannot_manually_assign_resources(self):
         self._login_customer()
@@ -879,6 +897,10 @@ class AvailabilityServiceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertEqual(payload["code"], "manager_assignment_required")
+        self.assertIn("wash_box", payload["field_errors"])
+        self.assertIn("washers", payload["field_errors"])
 
     def test_customer_cannot_access_manager_schedule(self):
         self._login_customer()
@@ -893,6 +915,10 @@ class AvailabilityServiceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 403)
+        payload = response.json()
+        self.assertIn("detail", payload)
+        self.assertEqual(payload["field_errors"], {})
+        self.assertIn("code", payload)
 
     def test_manager_schedule_api_returns_day_resources_and_bookings(self):
         self._login_manager()
@@ -926,6 +952,17 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["boxes"][0]["id"], self.box.id)
         self.assertEqual(payload["shifts"][0]["washer"], self.washer.id)
         self.assertEqual(payload["resource_blocks"][0]["reason"], "Перерыв")
+
+    def test_manager_schedule_api_validates_required_query_params(self):
+        self._login_manager()
+
+        response = self.client.get(reverse("api:manager:schedule"))
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("station", payload["field_errors"])
+        self.assertIn("date", payload["field_errors"])
 
     def test_manager_booking_list_filters_by_status_and_washer(self):
         self._login_manager()
@@ -992,6 +1029,28 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["wash_box"], second_box.id)
         self.assertEqual(payload["washers"][0]["id"], second_washer.id)
 
+    def test_manager_assign_api_validates_required_washers(self):
+        self._login_manager()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        url = reverse("api:manager:booking-assign", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {"wash_box": self.box.id},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("washers", payload["field_errors"])
+
     def test_manager_status_api_changes_booking_status(self):
         self._login_manager()
         booking = create_booking(
@@ -1011,6 +1070,28 @@ class AvailabilityServiceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["data"]["status"], Booking.Status.CONFIRMED)
+
+    def test_manager_status_api_validates_status(self):
+        self._login_manager()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        url = reverse("api:manager:booking-status", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {"status": "unknown"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("status", payload["field_errors"])
 
     def test_manager_shift_api_creates_shift(self):
         self._login_manager()
@@ -1032,6 +1113,27 @@ class AvailabilityServiceTests(TestCase):
         payload = response.json()["data"]
         self.assertEqual(payload["washer"], washer.id)
         self.assertEqual(payload["wash_station"], self.station.id)
+
+    def test_manager_shift_api_validates_datetime_order(self):
+        self._login_manager()
+        washer = Washer.objects.create(name="Сергей", surname="Сидоров")
+        url = reverse("api:manager:shift-list")
+
+        response = self.client.post(
+            url,
+            {
+                "washer": washer.id,
+                "wash_station": self.station.id,
+                "starts_at": make_dt(self.day, 18).isoformat(),
+                "ends_at": make_dt(self.day, 13).isoformat(),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("ends_at", payload["field_errors"])
 
     def test_manager_resource_block_api_creates_block(self):
         self._login_manager()

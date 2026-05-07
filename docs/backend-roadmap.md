@@ -38,6 +38,10 @@ SQLite.
 
 ### Этап 14. Единый API contract и ошибки
 
+Статус: выполнено. Добавлены shared API response helpers, единый exception
+handler, `code` и нормализованный `field_errors` для auth, dictionary,
+booking и manager endpoints.
+
 Задачи:
 
 - Ввести helpers для successful/error responses.

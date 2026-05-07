@@ -270,6 +270,27 @@ POST   /api/manager/resource-blocks/
 Current endpoints accept and return regular JSON. DRF JSON:API components
 remain enabled for future compatibility.
 
+Successful API responses use the same envelope:
+
+```json
+{
+  "data": {}
+}
+```
+
+Error responses use a stable form contract so the frontend can render field
+errors consistently:
+
+```json
+{
+  "detail": "Human-readable error.",
+  "field_errors": {
+    "field_name": ["Field-specific message."]
+  },
+  "code": "machine_readable_code"
+}
+```
+
 ### Service Layer
 
 Business logic lives in `back/car_wash/services/`:
@@ -613,6 +634,27 @@ POST   /api/manager/resource-blocks/
 
 Текущие endpoints принимают и отдают обычный JSON. JSON:API-компоненты DRF
 остаются подключенными для дальнейшей совместимости.
+
+Успешные ответы API используют общий envelope:
+
+```json
+{
+  "data": {}
+}
+```
+
+Ошибки возвращаются в стабильном формате, чтобы frontend мог одинаково
+показывать ошибки форм:
+
+```json
+{
+  "detail": "Человекочитаемое описание ошибки.",
+  "field_errors": {
+    "field_name": ["Сообщение для конкретного поля."]
+  },
+  "code": "machine_readable_code"
+}
+```
 
 ### Сервисный слой
 
