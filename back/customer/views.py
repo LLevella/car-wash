@@ -1,8 +1,10 @@
+from django.db.models import Q
+
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from back.api import success_response
-from customer.models import Customer
+from customer.models import Car, Customer
 from car_wash.permissions import is_manager_user
 
 
@@ -25,7 +27,8 @@ class CustomerCarListView(APIView):
         if customer is None:
             return success_response([])
 
-        return success_response([car_payload(customer.car)])
+        cars = customer_cars_queryset(customer)
+        return success_response([car_payload(car) for car in cars])
 
 
 def _customer_for_request(request):
@@ -50,6 +53,15 @@ def customer_payload(customer):
         "user_id": customer.user_id,
         "car": car_payload(customer.car),
     }
+
+
+def customer_cars_queryset(customer):
+    return (
+        Car.objects.select_related("carType")
+        .filter(Q(customer=customer) | Q(id=customer.car_id))
+        .distinct()
+        .order_by("id")
+    )
 
 
 def car_payload(car):

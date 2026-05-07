@@ -214,7 +214,12 @@ class Booking(models.Model):
         if self.starts_at and self.ends_at and self.starts_at >= self.ends_at:
             errors["ends_at"] = "Окончание записи должно быть позже начала."
 
-        if self.customer_id and self.car_id and self.customer.car_id != self.car_id:
+        if (
+            self.customer_id
+            and self.car_id
+            and self.customer.car_id != self.car_id
+            and self.car.customer_id != self.customer_id
+        ):
             errors["car"] = "Автомобиль должен принадлежать заказчику."
 
         if (

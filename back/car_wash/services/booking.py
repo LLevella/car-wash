@@ -205,7 +205,7 @@ def _replace_assignments(*, booking: Booking, washers: list[Washer]) -> None:
 
 
 def _validate_customer_car(*, customer: Customer, car: Car) -> None:
-    if customer.car_id != car.id:
+    if car.customer_id != customer.id and customer.car_id != car.id:
         raise BookingError("Автомобиль должен принадлежать заказчику.")
 
 

@@ -8,6 +8,14 @@ class Car(models.Model):
     number = models.CharField("Номер", max_length=100)
     carType = models.ForeignKey(
         CarType, verbose_name="Тип", on_delete=models.PROTECT)
+    customer = models.ForeignKey(
+        "Customer",
+        verbose_name="Заказчик",
+        on_delete=models.SET_NULL,
+        related_name="cars",
+        blank=True,
+        null=True,
+    )
 
     def __str__(self):
         return self.number
@@ -29,7 +37,11 @@ class Customer(models.Model):
     name = models.CharField("Имя", max_length=150)
     phoneNumber = models.CharField("Номер телефона", max_length=100)
     car = models.ForeignKey(
-        Car, verbose_name="Автомобиль", on_delete=models.PROTECT)
+        Car,
+        verbose_name="Автомобиль",
+        on_delete=models.PROTECT,
+        related_name="legacy_customers",
+    )
 
     def __str__(self):
         return self.name

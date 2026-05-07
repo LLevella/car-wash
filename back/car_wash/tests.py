@@ -378,6 +378,11 @@ class DictionaryApiTests(TestCase):
             phoneNumber="+79990000000",
             car=self.car,
         )
+        self.second_car = Car.objects.create(
+            number="B002BB",
+            carType=self.car_type,
+            customer=self.customer,
+        )
 
         city = City.objects.create(name="Москва")
         district = District.objects.create(name="Центральный")
@@ -430,7 +435,9 @@ class DictionaryApiTests(TestCase):
         self.assertEqual(cars_response.status_code, 200)
         self.assertEqual(profile_response.json()["data"]["id"], self.customer.id)
         self.assertEqual(profile_response.json()["data"]["car"]["number"], "A001AA")
+        self.assertEqual(len(cars_response.json()["data"]), 2)
         self.assertEqual(cars_response.json()["data"][0]["number"], "A001AA")
+        self.assertEqual(cars_response.json()["data"][1]["number"], "B002BB")
 
     def test_customer_profile_returns_empty_payload_without_profile(self):
         user = User.objects.create_user(username="no-profile", password="password")
@@ -452,7 +459,10 @@ class DictionaryApiTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["data"][0]["id"], self.car.id)
+        self.assertEqual(
+            [car["id"] for car in response.json()["data"]],
+            [self.car.id, self.second_car.id],
+        )
 
     def _add_user_to_group(self, user, group_name):
         group, _ = Group.objects.get_or_create(name=group_name)
@@ -736,6 +746,40 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(booking.down_payment, Decimal("250.00"))
         self.assertEqual(booking.residual, Decimal("750.00"))
         self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
+
+    def test_create_booking_allows_additional_customer_car(self):
+        second_car = Car.objects.create(
+            number="B002BB",
+            carType=self.car_type,
+            customer=self.customer,
+        )
+
+        booking = create_booking(
+            customer=self.customer,
+            car=second_car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        self.assertEqual(booking.car_id, second_car.id)
+
+    def test_create_booking_rejects_car_linked_to_another_customer(self):
+        other_customer, _ = self._create_other_customer()
+        other_car = Car.objects.create(
+            number="B002BB",
+            carType=self.car_type,
+            customer=other_customer,
+        )
+
+        with self.assertRaises(BookingError):
+            create_booking(
+                customer=self.customer,
+                car=other_car,
+                wash_station=self.station,
+                wash_type=self.wash_type,
+                starts_at=make_dt(self.day, 9),
+            )
 
     def test_create_booking_fails_when_resources_are_busy(self):
         create_booking(
@@ -1182,6 +1226,8 @@ class AvailabilityServiceTests(TestCase):
             phoneNumber=f"+7999000100{Customer.objects.count()}",
             car=other_car,
         )
+        other_car.customer = other_customer
+        other_car.save(update_fields=["customer"])
         return other_customer, other_car
 
     def _create_booking(self, *, starts_at, ends_at, status):

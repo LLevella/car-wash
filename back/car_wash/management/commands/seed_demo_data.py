@@ -90,7 +90,7 @@ class Command(BaseCommand):
             number="DEMO001",
             defaults={"carType": car_type},
         )
-        Customer.objects.update_or_create(
+        customer, _ = Customer.objects.update_or_create(
             phoneNumber="+10000000000",
             defaults={
                 "user": customer_user,
@@ -98,6 +98,9 @@ class Command(BaseCommand):
                 "car": car,
             },
         )
+        if car.customer_id != customer.id:
+            car.customer = customer
+            car.save(update_fields=["customer"])
 
         washer_names = (
             ("Alex", "Washer"),
