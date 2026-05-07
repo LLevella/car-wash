@@ -6,6 +6,8 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 import { BookingPage } from "../features/booking/BookingPage";
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
+import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
+import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 
 export const router = createBrowserRouter([
@@ -43,6 +45,22 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute roles={["manager", "admin"]}>
             <ManagerBookingsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/manager/shifts",
+        element: (
+          <ProtectedRoute roles={["manager", "admin"]}>
+            <ManagerShiftsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/manager/resource-blocks",
+        element: (
+          <ProtectedRoute roles={["manager", "admin"]}>
+            <ManagerResourceBlocksPage />
           </ProtectedRoute>
         ),
       },

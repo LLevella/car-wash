@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
@@ -33,8 +33,7 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Новая запись" }),
     ).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /10:30/i })).toHaveClass(
-      "slot--active",
-    );
+    const slot = await screen.findByRole("button", { name: /10:30/i });
+    await waitFor(() => expect(slot).toHaveClass("slot--active"));
   });
 });

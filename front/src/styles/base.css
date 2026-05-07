@@ -189,6 +189,22 @@ a {
   grid-column: 1 / -1;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 42px;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.checkbox-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-brand);
+}
+
 .field {
   display: grid;
   gap: var(--space-2);

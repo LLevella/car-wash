@@ -1,5 +1,11 @@
 import { apiRequest } from "./client";
-import type { Booking, BookingStatus, ManagerScheduleDay } from "./types";
+import type {
+  Booking,
+  BookingStatus,
+  ManagerScheduleDay,
+  ResourceBlock,
+  WasherShift,
+} from "./types";
 
 export type ManagerScheduleParams = {
   station: number;
@@ -12,6 +18,28 @@ export type ManagerBookingFilters = {
   status?: BookingStatus;
   box?: number;
   washer?: number;
+};
+
+export type ManagerResourceFilters = {
+  station?: number;
+  date?: string;
+};
+
+export type CreateManagerShiftPayload = {
+  washer: number;
+  wash_station: number;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+};
+
+export type CreateResourceBlockPayload = {
+  wash_station: number;
+  wash_box?: number | null;
+  washer?: number | null;
+  starts_at: string;
+  ends_at: string;
+  reason: string;
 };
 
 export function getManagerSchedule(params: ManagerScheduleParams) {
@@ -42,6 +70,34 @@ export function updateManagerBookingStatus(id: number, status: BookingStatus) {
   return apiRequest<Booking>(`/api/manager/bookings/${id}/status/`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+}
+
+export function getManagerShifts(filters: ManagerResourceFilters = {}) {
+  return apiRequest<WasherShift[]>(
+    `/api/manager/shifts/?${new URLSearchParams(stringifyParams(filters)).toString()}`,
+  );
+}
+
+export function createManagerShift(payload: CreateManagerShiftPayload) {
+  return apiRequest<WasherShift>("/api/manager/shifts/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getManagerResourceBlocks(filters: ManagerResourceFilters = {}) {
+  return apiRequest<ResourceBlock[]>(
+    `/api/manager/resource-blocks/?${new URLSearchParams(
+      stringifyParams(filters),
+    ).toString()}`,
+  );
+}
+
+export function createManagerResourceBlock(payload: CreateResourceBlockPayload) {
+  return apiRequest<ResourceBlock>("/api/manager/resource-blocks/", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

@@ -3,9 +3,11 @@ import {
   CalendarDays,
   Car,
   ClipboardList,
+  Clock3,
   LayoutDashboard,
   LogIn,
   LogOut,
+  ShieldAlert,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -31,6 +33,18 @@ const navItems = [
     to: "/manager/bookings",
     label: "Заказы",
     icon: LayoutDashboard,
+    roles: ["manager", "admin"],
+  },
+  {
+    to: "/manager/shifts",
+    label: "Смены",
+    icon: Clock3,
+    roles: ["manager", "admin"],
+  },
+  {
+    to: "/manager/resource-blocks",
+    label: "Блокировки",
+    icon: ShieldAlert,
     roles: ["manager", "admin"],
   },
 ] satisfies Array<{
