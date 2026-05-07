@@ -80,7 +80,18 @@ def can_access_station(user, wash_station):
     ).exists()
 
 
+def restrict_queryset_to_accessible_stations(queryset, user, *, station_field):
+    station_ids = user_accessible_station_ids(user)
+    if station_ids is None:
+        return queryset
+
+    return queryset.filter(**{f"{station_field}_id__in": station_ids})
+
+
 def can_access_booking(user, booking):
+    if is_manager_user(user):
+        return can_access_station(user, booking.wash_station)
+
     return can_access_customer(user, booking.customer)
 
 

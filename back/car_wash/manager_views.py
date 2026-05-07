@@ -12,13 +12,21 @@ from back.api import error_response, success_response, validation_error_response
 from personal.models import Washer, WashStation
 
 from car_wash.models import Booking, ResourceBlock, WashBox, WasherShift
-from car_wash.permissions import IsManager
+from car_wash.permissions import (
+    IsManager,
+    can_access_station,
+    restrict_queryset_to_accessible_stations,
+)
 from car_wash.services.booking import (
     BookingError,
     assign_booking_resources,
     change_booking_status,
 )
 from car_wash.views import _booking_payload
+
+
+class StationAccessError(PermissionError):
+    """Raised when a manager has no access to the requested station."""
 
 
 class ManagerScheduleView(APIView):
@@ -33,6 +41,8 @@ class ManagerScheduleView(APIView):
                 field_errors=_station_day_field_errors(request),
                 code="validation_error",
             )
+        except StationAccessError:
+            return _station_access_denied_response()
 
         day_start, day_end = _day_bounds(day)
 
@@ -83,7 +93,11 @@ class ManagerBookingListView(APIView):
     permission_classes = (IsManager,)
 
     def get(self, request):
-        bookings = _manager_bookings_queryset().order_by("-starts_at")
+        bookings = restrict_queryset_to_accessible_stations(
+            _manager_bookings_queryset(),
+            request.user,
+            station_field="wash_station",
+        ).order_by("-starts_at")
         station_id = request.query_params.get("station")
         status_value = request.query_params.get("status")
         box_id = request.query_params.get("box")
@@ -91,7 +105,10 @@ class ManagerBookingListView(APIView):
         day = parse_date(request.query_params.get("date", ""))
 
         if station_id:
-            bookings = bookings.filter(wash_station_id=station_id)
+            wash_station = get_object_or_404(WashStation, pk=station_id)
+            if not can_access_station(request.user, wash_station):
+                return _station_access_denied_response()
+            bookings = bookings.filter(wash_station=wash_station)
         if status_value:
             bookings = bookings.filter(status=status_value)
         if box_id:
@@ -115,6 +132,9 @@ class ManagerBookingAssignView(APIView):
 
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
+
+        if not can_access_station(request.user, booking.wash_station):
+            return _station_access_denied_response()
 
         try:
             wash_box = _get_optional_wash_box(request.data.get("wash_box"))
@@ -140,6 +160,9 @@ class ManagerBookingStatusView(APIView):
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
 
+        if not can_access_station(request.user, booking.wash_station):
+            return _station_access_denied_response()
+
         try:
             booking = change_booking_status(
                 booking=booking,
@@ -159,16 +182,19 @@ class ManagerShiftListCreateView(APIView):
     permission_classes = (IsManager,)
 
     def get(self, request):
-        shifts = (
-            WasherShift.objects.select_related("washer", "wash_station")
-            .all()
-            .order_by("-starts_at")
-        )
+        shifts = restrict_queryset_to_accessible_stations(
+            WasherShift.objects.select_related("washer", "wash_station"),
+            request.user,
+            station_field="wash_station",
+        ).order_by("-starts_at")
         station_id = request.query_params.get("station")
         day = parse_date(request.query_params.get("date", ""))
 
         if station_id:
-            shifts = shifts.filter(wash_station_id=station_id)
+            wash_station = get_object_or_404(WashStation, pk=station_id)
+            if not can_access_station(request.user, wash_station):
+                return _station_access_denied_response()
+            shifts = shifts.filter(wash_station=wash_station)
         if day:
             day_start, day_end = _day_bounds(day)
             shifts = shifts.filter(starts_at__lt=day_end, ends_at__gt=day_start)
@@ -177,12 +203,16 @@ class ManagerShiftListCreateView(APIView):
 
     def post(self, request):
         try:
+            wash_station = get_object_or_404(
+                WashStation,
+                pk=request.data.get("wash_station"),
+            )
+            if not can_access_station(request.user, wash_station):
+                return _station_access_denied_response()
+
             shift = WasherShift(
                 washer=get_object_or_404(Washer, pk=request.data.get("washer")),
-                wash_station=get_object_or_404(
-                    WashStation,
-                    pk=request.data.get("wash_station"),
-                ),
+                wash_station=wash_station,
                 starts_at=_parse_required_datetime(
                     request.data.get("starts_at"),
                     field_name="starts_at",
@@ -210,16 +240,19 @@ class ManagerResourceBlockListCreateView(APIView):
     permission_classes = (IsManager,)
 
     def get(self, request):
-        blocks = (
-            ResourceBlock.objects.select_related("wash_station", "wash_box", "washer")
-            .all()
-            .order_by("-starts_at")
-        )
+        blocks = restrict_queryset_to_accessible_stations(
+            ResourceBlock.objects.select_related("wash_station", "wash_box", "washer"),
+            request.user,
+            station_field="wash_station",
+        ).order_by("-starts_at")
         station_id = request.query_params.get("station")
         day = parse_date(request.query_params.get("date", ""))
 
         if station_id:
-            blocks = blocks.filter(wash_station_id=station_id)
+            wash_station = get_object_or_404(WashStation, pk=station_id)
+            if not can_access_station(request.user, wash_station):
+                return _station_access_denied_response()
+            blocks = blocks.filter(wash_station=wash_station)
         if day:
             day_start, day_end = _day_bounds(day)
             blocks = blocks.filter(starts_at__lt=day_end, ends_at__gt=day_start)
@@ -228,11 +261,15 @@ class ManagerResourceBlockListCreateView(APIView):
 
     def post(self, request):
         try:
+            wash_station = get_object_or_404(
+                WashStation,
+                pk=request.data.get("wash_station"),
+            )
+            if not can_access_station(request.user, wash_station):
+                return _station_access_denied_response()
+
             block = ResourceBlock(
-                wash_station=get_object_or_404(
-                    WashStation,
-                    pk=request.data.get("wash_station"),
-                ),
+                wash_station=wash_station,
                 wash_box=_get_optional_wash_box(request.data.get("wash_box")),
                 washer=_get_optional_washer(request.data.get("washer")),
                 starts_at=_parse_required_datetime(
@@ -275,7 +312,11 @@ def _get_station_and_day(request):
     if not station_id or day is None:
         raise ValueError("Параметры station и date обязательны.")
 
-    return get_object_or_404(WashStation, pk=station_id), day
+    wash_station = get_object_or_404(WashStation, pk=station_id)
+    if not can_access_station(request.user, wash_station):
+        raise StationAccessError
+
+    return wash_station, day
 
 
 def _station_day_field_errors(request):
@@ -319,6 +360,14 @@ def _datetime_error_response(exc):
         message,
         field_errors={field_name: [message]},
         code="validation_error",
+    )
+
+
+def _station_access_denied_response():
+    return error_response(
+        "Нет доступа к этой станции.",
+        code="station_access_denied",
+        status_code=status.HTTP_403_FORBIDDEN,
     )
 
 

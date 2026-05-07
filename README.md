@@ -321,6 +321,10 @@ The backend uses Django users and groups:
 
 Availability lookup remains public. Booking endpoints require an authenticated
 customer, manager, or admin. Manager endpoints require a manager or admin.
+Managers are additionally limited by `ManagerStationAccess`: schedule,
+assignment, shift, resource block, and manager booking endpoints only expose
+stations explicitly assigned to that user. Admin users keep unrestricted station
+access.
 
 ### Tests
 
@@ -690,6 +694,10 @@ Backend использует пользователей и группы Django:
 Расчет доступности остается публичным. Booking endpoints требуют
 аутентифицированного клиента, менеджера или администратора. Manager endpoints
 требуют менеджера или администратора.
+Дополнительно managers ограничены `ManagerStationAccess`: расписание,
+назначения, смены, блокировки ресурсов и manager booking endpoints работают
+только со станциями, явно назначенными пользователю. Admin users сохраняют
+полный доступ ко всем станциям.
 
 ### Тесты
 

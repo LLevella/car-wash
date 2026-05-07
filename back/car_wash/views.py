@@ -15,8 +15,10 @@ from car_wash.permissions import (
     IsManager,
     can_access_customer,
     can_access_booking,
+    can_access_station,
     get_request_customer,
     is_manager_user,
+    restrict_queryset_to_accessible_stations,
 )
 from car_wash.services.availability import get_available_slots
 from car_wash.services.booking import (
@@ -91,8 +93,14 @@ class BookingListCreateView(APIView):
             "wash_type",
         ).order_by("-starts_at")
 
-        if is_manager_user(request.user) and customer_id:
-            bookings = bookings.filter(customer_id=customer_id)
+        if is_manager_user(request.user):
+            bookings = restrict_queryset_to_accessible_stations(
+                bookings,
+                request.user,
+                station_field="wash_station",
+            )
+            if customer_id:
+                bookings = bookings.filter(customer_id=customer_id)
         elif not is_manager_user(request.user):
             customer = get_request_customer(request.user)
             if customer is None:
@@ -117,6 +125,12 @@ class BookingListCreateView(APIView):
                     "Нет доступа к этому заказчику.",
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
+
+            if is_manager_user(request.user) and not can_access_station(
+                request.user,
+                wash_station,
+            ):
+                return _station_access_denied_response()
 
             if (
                 not is_manager_user(request.user)
@@ -235,6 +249,9 @@ class BookingStatusView(APIView):
     def patch(self, request, pk):
         booking = get_object_or_404(Booking, pk=pk)
 
+        if not can_access_booking(request.user, booking):
+            return _station_access_denied_response()
+
         try:
             booking = change_booking_status(
                 booking=booking,
@@ -273,6 +290,14 @@ def _starts_at_error_response(exc):
         str(exc),
         field_errors={"starts_at": [str(exc)]},
         code="validation_error",
+    )
+
+
+def _station_access_denied_response():
+    return error_response(
+        "Нет доступа к этой станции.",
+        code="station_access_denied",
+        status_code=status.HTTP_403_FORBIDDEN,
     )
 
 

@@ -399,6 +399,10 @@ class DictionaryApiTests(TestCase):
             district=district,
             address="Тестовая улица, 1",
         )
+        ManagerStationAccess.objects.create(
+            user=self.manager_user,
+            wash_station=self.station,
+        )
         self.wash_type = WashType.objects.create(
             name="Комплекс",
             description="Комплексная мойка",
@@ -717,6 +721,10 @@ class AvailabilityServiceTests(TestCase):
             city=city,
             district=district,
             address="Тестовая улица, 1",
+        )
+        ManagerStationAccess.objects.create(
+            user=self.manager_user,
+            wash_station=self.station,
         )
         self.car_type = CarType.objects.create(
             name="Седан",
@@ -1180,6 +1188,21 @@ class AvailabilityServiceTests(TestCase):
         self.assertIn("station", payload["field_errors"])
         self.assertIn("date", payload["field_errors"])
 
+    def test_manager_schedule_api_rejects_inaccessible_station(self):
+        self._login_manager()
+        other_station = self._create_station_without_manager_access()
+
+        response = self.client.get(
+            reverse("api:manager:schedule"),
+            {
+                "station": other_station.id,
+                "date": self.day.isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
+
     def test_manager_booking_list_filters_by_status_and_washer(self):
         self._login_manager()
         booking = create_booking(
@@ -1205,6 +1228,24 @@ class AvailabilityServiceTests(TestCase):
         payload = response.json()["data"]
         self.assertEqual(len(payload), 1)
         self.assertEqual(payload[0]["id"], booking.id)
+
+    def test_manager_booking_list_hides_inaccessible_station_bookings(self):
+        self._login_manager()
+        visible_booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        hidden_booking = self._create_booking_without_manager_station_access()
+
+        response = self.client.get(reverse("api:manager:booking-list"))
+
+        self.assertEqual(response.status_code, 200)
+        booking_ids = [booking["id"] for booking in response.json()["data"]]
+        self.assertIn(visible_booking.id, booking_ids)
+        self.assertNotIn(hidden_booking.id, booking_ids)
 
     def test_manager_assign_api_replaces_box_and_washer(self):
         self._login_manager()
@@ -1244,6 +1285,23 @@ class AvailabilityServiceTests(TestCase):
         payload = response.json()["data"]
         self.assertEqual(payload["wash_box"], second_box.id)
         self.assertEqual(payload["washers"][0]["id"], second_washer.id)
+
+    def test_manager_assign_api_rejects_inaccessible_station_booking(self):
+        self._login_manager()
+        booking = self._create_booking_without_manager_station_access()
+        url = reverse("api:manager:booking-assign", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {
+                "wash_box": booking.wash_box_id,
+                "washers": [self.washer.id],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
 
     def test_manager_assign_api_validates_required_washers(self):
         self._login_manager()
@@ -1309,6 +1367,20 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["code"], "validation_error")
         self.assertIn("status", payload["field_errors"])
 
+    def test_manager_status_api_rejects_inaccessible_station_booking(self):
+        self._login_manager()
+        booking = self._create_booking_without_manager_station_access()
+        url = reverse("api:manager:booking-status", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {"status": Booking.Status.CONFIRMED},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
+
     def test_manager_shift_api_creates_shift(self):
         self._login_manager()
         washer = Washer.objects.create(name="Сергей", surname="Сидоров")
@@ -1351,6 +1423,26 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["code"], "validation_error")
         self.assertIn("ends_at", payload["field_errors"])
 
+    def test_manager_shift_api_rejects_inaccessible_station(self):
+        self._login_manager()
+        other_station = self._create_station_without_manager_access()
+        washer = Washer.objects.create(name="Сергей", surname="Сидоров")
+        url = reverse("api:manager:shift-list")
+
+        response = self.client.post(
+            url,
+            {
+                "washer": washer.id,
+                "wash_station": other_station.id,
+                "starts_at": make_dt(self.day, 13).isoformat(),
+                "ends_at": make_dt(self.day, 18).isoformat(),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
+
     def test_manager_resource_block_api_creates_block(self):
         self._login_manager()
         url = reverse("api:manager:resource-block-list")
@@ -1371,6 +1463,25 @@ class AvailabilityServiceTests(TestCase):
         payload = response.json()["data"]
         self.assertEqual(payload["wash_box"], self.box.id)
         self.assertEqual(payload["reason"], "Ремонт")
+
+    def test_manager_resource_block_api_rejects_inaccessible_station(self):
+        self._login_manager()
+        other_station = self._create_station_without_manager_access()
+        url = reverse("api:manager:resource-block-list")
+
+        response = self.client.post(
+            url,
+            {
+                "wash_station": other_station.id,
+                "starts_at": make_dt(self.day, 13).isoformat(),
+                "ends_at": make_dt(self.day, 14).isoformat(),
+                "reason": "Ремонт",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
 
     def _add_user_to_group(self, user, group_name):
         group, _ = Group.objects.get_or_create(name=group_name)
@@ -1401,6 +1512,34 @@ class AvailabilityServiceTests(TestCase):
         other_car.customer = other_customer
         other_car.save(update_fields=["customer"])
         return other_customer, other_car
+
+    def _create_station_without_manager_access(self):
+        return WashStation.objects.create(
+            name=f"Мойка без доступа {WashStation.objects.count()}",
+            city=self.station.city,
+            district=self.station.district,
+            address="Скрытая улица, 1",
+        )
+
+    def _create_booking_without_manager_station_access(self):
+        station = self._create_station_without_manager_access()
+        box = WashBox.objects.create(
+            wash_station=station,
+            name="Бокс без доступа",
+        )
+        return Booking.objects.create(
+            customer=self.customer,
+            car=self.car,
+            wash_station=station,
+            wash_box=box,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 13),
+            ends_at=make_dt(self.day, 14),
+            status=Booking.Status.PENDING,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )
 
     def _create_booking(self, *, starts_at, ends_at, status):
         car = Car.objects.create(

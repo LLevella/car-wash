@@ -89,6 +89,11 @@ endpoints и проверки booking на чужие или неактивны�
 
 ### Этап 16. Доступ менеджеров к станциям
 
+Статус: выполнено. Добавлена модель `ManagerStationAccess`, миграция выдает
+доступ существующим manager-пользователям к текущим станциям, demo manager
+получает demo station, а manager schedule/bookings/assign/status/shifts/resource
+blocks ограничены доступными станциями. Admin users сохраняют полный доступ.
+
 Задачи:
 
 - Добавить модель `ManagerStationAccess` или аналогичную связь user/station.
