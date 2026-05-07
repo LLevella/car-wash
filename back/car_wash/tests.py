@@ -26,6 +26,7 @@ from car_wash.models import (
     Booking,
     BookingAssignment,
     DownPayment,
+    ManagerStationAccess,
     ResourceBlock,
     WashBox,
     WashCost,
@@ -33,7 +34,13 @@ from car_wash.models import (
     WasherShift,
     WashType,
 )
-from car_wash.permissions import ADMIN_GROUP, CUSTOMER_GROUP, MANAGER_GROUP
+from car_wash.permissions import (
+    ADMIN_GROUP,
+    CUSTOMER_GROUP,
+    MANAGER_GROUP,
+    can_access_station,
+    user_accessible_station_ids,
+)
 from car_wash.services.availability import get_available_slots
 from car_wash.services.booking import (
     BookingError,
@@ -562,6 +569,59 @@ class DictionaryApiTests(TestCase):
     def _add_user_to_group(self, user, group_name):
         group, _ = Group.objects.get_or_create(name=group_name)
         user.groups.add(group)
+
+
+class ManagerStationAccessTests(TestCase):
+    def setUp(self):
+        self.manager_group, _ = Group.objects.get_or_create(name=MANAGER_GROUP)
+        self.admin_group, _ = Group.objects.get_or_create(name=ADMIN_GROUP)
+        self.manager_user = User.objects.create_user(
+            username="manager",
+            password="password",
+        )
+        self.manager_user.groups.add(self.manager_group)
+        self.admin_user = User.objects.create_user(
+            username="admin",
+            password="password",
+            is_staff=True,
+        )
+        self.admin_user.groups.add(self.admin_group)
+
+        city = City.objects.create(name="Москва")
+        district = District.objects.create(name="Центральный")
+        self.station = WashStation.objects.create(
+            name="Мойка 1",
+            city=city,
+            district=district,
+            address="Тестовая улица, 1",
+        )
+        self.other_station = WashStation.objects.create(
+            name="Мойка 2",
+            city=city,
+            district=district,
+            address="Тестовая улица, 2",
+        )
+
+    def test_manager_without_station_access_has_empty_scope(self):
+        self.assertEqual(user_accessible_station_ids(self.manager_user), [])
+        self.assertFalse(can_access_station(self.manager_user, self.station))
+
+    def test_manager_with_active_station_access_is_limited_to_that_station(self):
+        ManagerStationAccess.objects.create(
+            user=self.manager_user,
+            wash_station=self.station,
+        )
+
+        self.assertEqual(
+            user_accessible_station_ids(self.manager_user),
+            [self.station.id],
+        )
+        self.assertTrue(can_access_station(self.manager_user, self.station))
+        self.assertFalse(can_access_station(self.manager_user, self.other_station))
+
+    def test_admin_has_unrestricted_station_scope(self):
+        self.assertIsNone(user_accessible_station_ids(self.admin_user))
+        self.assertTrue(can_access_station(self.admin_user, self.station))
 
 
 class PricingServiceTests(TestCase):
@@ -1381,4 +1441,11 @@ class DemoDataCommandTests(TestCase):
         self.assertEqual(WashBox.objects.count(), 2)
         self.assertEqual(WasherShift.objects.count(), 2)
         self.assertTrue(Customer.objects.filter(phoneNumber="+10000000000").exists())
+        self.assertTrue(
+            ManagerStationAccess.objects.filter(
+                user__username="demo_manager",
+                wash_station__name="Demo Station",
+                is_active=True,
+            ).exists()
+        )
         self.assertIn("Demo data created", out.getvalue())

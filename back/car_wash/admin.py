@@ -4,6 +4,7 @@ from .models import (
     Booking,
     BookingAssignment,
     DownPayment,
+    ManagerStationAccess,
     ResourceBlock,
     WashBox,
     WashCost,
@@ -47,6 +48,15 @@ class WashBoxAdmin(admin.ModelAdmin):
     list_display = ("name", "wash_station", "is_active")
     list_filter = ("wash_station", "is_active")
     search_fields = ("name", "wash_station__name")
+
+
+@admin.register(ManagerStationAccess)
+class ManagerStationAccessAdmin(admin.ModelAdmin):
+    """Доступ руководителя к станции"""
+    list_display = ("user", "wash_station", "is_active", "created_at")
+    list_filter = ("wash_station", "is_active")
+    search_fields = ("user__username", "wash_station__name")
+    readonly_fields = ("created_at",)
 
 
 @admin.register(WasherShift)

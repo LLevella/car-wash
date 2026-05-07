@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from cars.models import CarType
 from customer.models import Car, Customer
@@ -94,6 +95,43 @@ class WashBox(models.Model):
         ]
         verbose_name = "Бокс мойки"
         verbose_name_plural = "Боксы мойки"
+
+
+class ManagerStationAccess(models.Model):
+    """Доступ руководителя к станции мойки"""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Пользователь",
+        on_delete=models.CASCADE,
+        related_name="car_wash_station_access",
+    )
+    wash_station = models.ForeignKey(
+        WashStation,
+        verbose_name="Станция мойки",
+        on_delete=models.CASCADE,
+        related_name="manager_access",
+    )
+    is_active = models.BooleanField("Активен", default=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user}: {self.wash_station}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "wash_station"],
+                name="unique_manager_station_access",
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=["user", "is_active"],
+                name="mgr_station_user_active_idx",
+            ),
+        ]
+        verbose_name = "Доступ руководителя к станции"
+        verbose_name_plural = "Доступы руководителей к станциям"
 
 
 class WasherShift(models.Model):

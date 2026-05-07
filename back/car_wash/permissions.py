@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission
 
+from car_wash.models import ManagerStationAccess
 from customer.models import Customer
 
 
@@ -48,6 +49,35 @@ def can_access_customer(user, customer):
         return True
 
     return bool(customer and customer.user_id == user.id)
+
+
+def user_accessible_station_ids(user):
+    if is_admin_user(user):
+        return None
+
+    if not is_manager_user(user):
+        return []
+
+    return list(
+        ManagerStationAccess.objects.filter(
+            user=user,
+            is_active=True,
+        ).values_list("wash_station_id", flat=True)
+    )
+
+
+def can_access_station(user, wash_station):
+    if is_admin_user(user):
+        return True
+
+    if not is_manager_user(user) or wash_station is None:
+        return False
+
+    return ManagerStationAccess.objects.filter(
+        user=user,
+        wash_station=wash_station,
+        is_active=True,
+    ).exists()
 
 
 def can_access_booking(user, booking):

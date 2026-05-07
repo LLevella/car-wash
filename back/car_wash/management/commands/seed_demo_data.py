@@ -11,6 +11,7 @@ from personal.models import City, District, Washer, WashStation
 
 from car_wash.models import (
     DownPayment,
+    ManagerStationAccess,
     WashBox,
     WashCost,
     WashDuration,
@@ -53,6 +54,11 @@ class Command(BaseCommand):
                 "district": district,
                 "address": "1 Demo Street",
             },
+        )
+        ManagerStationAccess.objects.update_or_create(
+            user=manager_user,
+            wash_station=station,
+            defaults={"is_active": True},
         )
 
         for bay_name in ("Bay 1", "Bay 2"):
