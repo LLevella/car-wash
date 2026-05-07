@@ -5,8 +5,8 @@ from .models import Car, Customer
 
 @admin.register(Car)
 class CarAdmin(admin.ModelAdmin):
-    list_display = ("number", "carType", "customer")
-    list_filter = ("carType",)
+    list_display = ("number", "carType", "customer", "is_active")
+    list_filter = ("carType", "is_active")
     search_fields = ("number", "customer__name", "customer__phoneNumber")
 
 

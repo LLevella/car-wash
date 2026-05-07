@@ -16,6 +16,7 @@ class Car(models.Model):
         blank=True,
         null=True,
     )
+    is_active = models.BooleanField("Активен", default=True)
 
     def __str__(self):
         return self.number

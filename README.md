@@ -236,6 +236,9 @@ GET    /api/personal/stations/
 GET    /api/car-wash/wash-types/
 GET    /api/customers/me/
 GET    /api/customers/cars/
+POST   /api/customers/cars/
+PATCH  /api/customers/cars/{id}/
+DELETE /api/customers/cars/{id}/
 ```
 
 Available slots:
@@ -601,6 +604,9 @@ GET    /api/personal/stations/
 GET    /api/car-wash/wash-types/
 GET    /api/customers/me/
 GET    /api/customers/cars/
+POST   /api/customers/cars/
+PATCH  /api/customers/cars/{id}/
+DELETE /api/customers/cars/{id}/
 ```
 
 Расчет свободных слотов:

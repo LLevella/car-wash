@@ -464,6 +464,101 @@ class DictionaryApiTests(TestCase):
             [self.car.id, self.second_car.id],
         )
 
+    def test_customer_can_create_car(self):
+        self.client.force_login(self.customer_user)
+
+        response = self.client.post(
+            reverse("api:customer:car-list"),
+            {"number": "C003CC", "car_type": self.car_type.id},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()["data"]
+        self.assertEqual(payload["number"], "C003CC")
+        self.assertEqual(payload["customer"], self.customer.id)
+        self.assertTrue(payload["is_active"])
+        self.assertTrue(
+            Car.objects.filter(
+                number="C003CC",
+                customer=self.customer,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_customer_car_create_returns_field_errors(self):
+        self.client.force_login(self.customer_user)
+
+        response = self.client.post(
+            reverse("api:customer:car-list"),
+            {},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("number", payload["field_errors"])
+        self.assertIn("car_type", payload["field_errors"])
+
+    def test_customer_can_update_own_car(self):
+        self.client.force_login(self.customer_user)
+
+        response = self.client.patch(
+            reverse("api:customer:car-detail", kwargs={"pk": self.second_car.id}),
+            {"number": "B999BB"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.second_car.refresh_from_db()
+        self.assertEqual(self.second_car.number, "B999BB")
+        self.assertEqual(response.json()["data"]["number"], "B999BB")
+
+    def test_customer_cannot_update_another_customer_car(self):
+        other_user = User.objects.create_user(username="oleg", password="password")
+        self._add_user_to_group(other_user, CUSTOMER_GROUP)
+        other_car = Car.objects.create(
+            number="O001OO",
+            carType=self.car_type,
+        )
+        other_customer = Customer.objects.create(
+            user=other_user,
+            name="Олег",
+            phoneNumber="+79990000001",
+            car=other_car,
+        )
+        other_car.customer = other_customer
+        other_car.save(update_fields=["customer"])
+        self.client.force_login(self.customer_user)
+
+        response = self.client.patch(
+            reverse("api:customer:car-detail", kwargs={"pk": other_car.id}),
+            {"number": "HACK"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+        payload = response.json()
+        self.assertEqual(payload["field_errors"], {})
+        self.assertIn("code", payload)
+
+    def test_customer_can_soft_delete_own_car(self):
+        self.client.force_login(self.customer_user)
+
+        response = self.client.delete(
+            reverse("api:customer:car-detail", kwargs={"pk": self.second_car.id}),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.second_car.refresh_from_db()
+        self.assertFalse(self.second_car.is_active)
+        list_response = self.client.get(reverse("api:customer:car-list"))
+        self.assertEqual(
+            [car["id"] for car in list_response.json()["data"]],
+            [self.car.id],
+        )
+
     def _add_user_to_group(self, user, group_name):
         group, _ = Group.objects.get_or_create(name=group_name)
         user.groups.add(group)
@@ -776,6 +871,23 @@ class AvailabilityServiceTests(TestCase):
             create_booking(
                 customer=self.customer,
                 car=other_car,
+                wash_station=self.station,
+                wash_type=self.wash_type,
+                starts_at=make_dt(self.day, 9),
+            )
+
+    def test_create_booking_rejects_inactive_car(self):
+        inactive_car = Car.objects.create(
+            number="B002BB",
+            carType=self.car_type,
+            customer=self.customer,
+            is_active=False,
+        )
+
+        with self.assertRaises(BookingError):
+            create_booking(
+                customer=self.customer,
+                car=inactive_car,
                 wash_station=self.station,
                 wash_type=self.wash_type,
                 starts_at=make_dt(self.day, 9),
