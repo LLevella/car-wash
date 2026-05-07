@@ -458,7 +458,7 @@ a {
 .schedule-grid__head,
 .schedule-grid__row {
   display: grid;
-  grid-template-columns: 116px repeat(8, minmax(96px, 1fr));
+  grid-template-columns: 116px repeat(10, minmax(96px, 1fr));
 }
 
 .schedule-grid__head {
@@ -507,6 +507,18 @@ a {
 
 .schedule-card small {
   color: var(--color-muted);
+}
+
+.inline-select {
+  width: 100%;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-small);
+  background: #ffffff;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .resource-strip {
