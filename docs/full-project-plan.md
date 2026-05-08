@@ -9,13 +9,13 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-22 выполнены.
+- Backend этапы 1-23 выполнены.
 - Frontend MVP этапы 1-13 выполнены (включая production build/deploy,
   управление автомобилями клиента, обновлённый manager schedule UI,
   автогенерацию TypeScript-типов из OpenAPI, просмотр audit-истории и
   индикатор статуса оплаты).
-- В работе/планируется: backend этапы 23-24, расширение frontend (F14),
-  доработки инфраструктуры.
+- Инфраструктурные этапы I1-I9 выполнены.
+- В работе/планируется: backend этап 24 и frontend F14 (отчёты MVP+).
 
 ## 1. Контекст и цель проекта
 
@@ -398,6 +398,7 @@ GET    /api/schema/swagger/
 GET    /api/schema/redoc/
 
 GET    /health/
+GET    /health/ready/
 ```
 
 ### 6.2 Запланированные endpoints
@@ -1495,6 +1496,8 @@ F-этап не стартует, пока соответствующий B-эт
 
 #### B23. Production operations
 
+Статус: выполнен.
+
 Задачи:
 
 - Настроить CORS/CSRF для separate frontend host.
@@ -1503,11 +1506,52 @@ F-этап не стартует, пока соответствующий B-эт
 - Описать backup/restore SQLite и PostgreSQL.
 - Добавить management command для health diagnostics.
 
+Реализовано:
+
+- CORS/CSRF для separate frontend host уже доступны через
+  `DJANGO_CORS_ALLOWED_ORIGINS` и `DJANGO_CSRF_TRUSTED_ORIGINS`
+  (этап B10); никаких backend-изменений не требуется.
+- В `back/back/health.py` добавлен `readiness_check` — endpoint
+  `GET /health/ready/`, который выполняет `SELECT 1` через
+  `connections["default"]`. На успехе возвращает
+  `{"status": "ready"}`, на `OperationalError` — HTTP 503 c
+  `{"status": "unavailable", "detail": ...}`. Заголовок
+  `Cache-Control: no-store`.
+- Добавлена management command `python manage.py health_diagnostics`,
+  которая выводит engine, имя БД, наличие pending-миграций, число
+  pending-уведомлений в outbox и распределение booking-ов по статусам
+  за последние 7 дней. Падает с exit code 1, если БД недоступна.
+- Добавлен docker-compose override `docker-compose.postgres.yml`
+  (I7): сервис `postgres:16-alpine` с healthcheck `pg_isready`,
+  volume `postgres-data`, и `DATABASE_URL=postgres://carwash:carwash@db:5432/carwash`
+  на backend. Команда запуска:
+  `docker compose -f docker-compose.yml -f docker-compose.postgres.yml up --build`.
+- Добавлен `docs/operations.md` (I8) с описанием health probes,
+  health_diagnostics, backup/restore для SQLite (`.backup` online и
+  offline copy) и PostgreSQL (`pg_dump --format=custom` + `pg_restore`),
+  PostgreSQL Compose override и структурированных логов.
+- Добавлена структурированная JSON-обвязка логирования (I9):
+  `back.logging_extensions.JsonFormatter`, конфиг `LOGGING` в
+  `settings.py` с переключателем `DJANGO_LOG_JSON` (по умолчанию
+  включается, когда `DJANGO_DEBUG=false`) и `DJANGO_LOG_LEVEL`
+  (default `INFO`). Каждая лог-строка — один JSON с полями `time`,
+  `level`, `logger`, `message`, опционально `exc_info`.
+- Тесты:
+  `test_readiness_check_returns_ready_when_db_is_reachable`,
+  `test_readiness_check_returns_503_when_db_query_fails`,
+  `test_command_reports_health` для `health_diagnostics`.
+
 Критерии готовности:
 
-- локальный Docker запуск дополняет SQLite dev-flow, не заменяет его;
-- production health/readiness можно использовать в deploy;
-- backup и restore описаны в docs.
+- production health/readiness probes отдают корректные коды и не
+  кэшируются;
+- backup/restore описаны для SQLite и PostgreSQL и проверены вручную
+  в `docs/operations.md`;
+- production-grade Postgres-compose дополняет dev SQLite-flow и
+  отделён в override-файл, чтобы случайно не сломать локальную
+  разработку;
+- структурированные логи готовы к ingest в Cloud Logging/ELK/Datadog
+  без post-processing.
 
 #### B24. Отчеты MVP+
 
@@ -1891,9 +1935,9 @@ Backend prerequisites: B15 (выполнен) — backend отдаёт неск�
 | I4  | GitHub Actions CI                             | done     |
 | I5  | GitHub Actions CD (опционально через secrets) | done     |
 | I6  | Playwright workflow для e2e                   | done     |
-| I7  | Production-grade compose с PostgreSQL         | planned  |
-| I8  | Backup/restore инструкции в docs              | planned  |
-| I9  | Observability: structured logs, health probes | planned  |
+| I7  | Production-grade compose с PostgreSQL         | done     |
+| I8  | Backup/restore инструкции в docs              | done     |
+| I9  | Observability: structured logs, health probes | done     |
 
 ## 11. Тестирование
 
@@ -2216,11 +2260,9 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B22 и F1-F13 выполнены):
+С учётом текущего статуса (B1-B23, F1-F13 и I1-I9 выполнены):
 
-1. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
-   observability.
-2. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+1. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,

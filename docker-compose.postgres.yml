@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: carwash
+      POSTGRES_PASSWORD: carwash
+      POSTGRES_DB: carwash
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "carwash"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    environment:
+      DATABASE_URL: postgres://carwash:carwash@db:5432/carwash
+      DJANGO_DEBUG: "false"
+      DJANGO_SEED_DEMO_DATA: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

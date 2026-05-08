@@ -158,6 +158,41 @@ class HealthCheckTests(TestCase):
         self.assertEqual(response.json(), {"status": "ok"})
         self.assertEqual(response["Cache-Control"], "no-store")
 
+    def test_readiness_check_returns_ready_when_db_is_reachable(self):
+        response = self.client.get(reverse("readiness-check"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ready"})
+        self.assertEqual(response["Cache-Control"], "no-store")
+
+    def test_readiness_check_returns_503_when_db_query_fails(self):
+        from django.db.utils import OperationalError
+        from django.db import connections
+
+        default_connection = connections["default"]
+
+        def raise_operational_error(*args, **kwargs):
+            raise OperationalError("simulated failure")
+
+        with mock.patch.object(default_connection, "cursor", side_effect=raise_operational_error):
+            response = self.client.get(reverse("readiness-check"))
+
+        self.assertEqual(response.status_code, 503)
+        body = response.json()
+        self.assertEqual(body["status"], "unavailable")
+        self.assertIn("simulated failure", body["detail"])
+
+
+class HealthDiagnosticsCommandTests(TestCase):
+    def test_command_reports_health(self):
+        out = StringIO()
+        call_command("health_diagnostics", stdout=out)
+
+        output = out.getvalue()
+        self.assertIn("Database engine", output)
+        self.assertIn("DB reachable: OK", output)
+        self.assertIn("Pending notifications", output)
+
 
 class OpenApiSchemaTests(TestCase):
     """The OpenAPI schema endpoints must stay reachable and

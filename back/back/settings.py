@@ -212,3 +212,31 @@ SPECTACULAR_SETTINGS = {
     # Dev users still get a browsable Swagger UI when authenticated.
     'SERVE_PERMISSIONS': ['car_wash.permissions.IsManager'],
 }
+
+# Structured JSON logging for production. In production observability
+# pipelines (Cloud Logging, ELK, Datadog) parse these logs by `level`,
+# `logger`, `time` and `message` fields. In development the default plain
+# text format is used.
+LOGGING_USE_JSON = env_bool("DJANGO_LOG_JSON", not DEBUG)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "json": {
+            "()": "back.logging_extensions.JsonFormatter",
+        },
+        "plain": {
+            "format": "[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json" if LOGGING_USE_JSON else "plain",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.environ.get("DJANGO_LOG_LEVEL", "INFO"),
+    },
+}
