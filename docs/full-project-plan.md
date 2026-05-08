@@ -9,9 +9,10 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-16 выполнены.
-- Frontend MVP этапы 1-8 выполнены (включая production build/deploy).
-- В работе/планируется: backend этапы 17-24, расширение frontend (F9-F14),
+- Backend этапы 1-17 выполнены.
+- Frontend MVP этапы 1-9 выполнены (включая production build/deploy и
+  управление автомобилями клиента).
+- В работе/планируется: backend этапы 18-24, расширение frontend (F10-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -664,17 +665,16 @@ Manager day-planning flow:
 
 ### 9.6 Backend-prerequisites для запланированных F-этапов
 
-| F-этап | Backend prerequisites                                | Готовность     |
-| ------ | ---------------------------------------------------- | -------------- |
-| F9     | B15 (CRUD автомобилей клиента)                       | done           |
-| F10    | B18 (компактный schedule payload + детали записи)    | планируется    |
-| F11    | B19 (OpenAPI schema)                                 | планируется    |
-| F12    | B20 (audit log endpoints)                            | планируется    |
-| F13    | B22 (payment status в payload)                       | планируется    |
-| F14    | B24 (manager reports endpoints)                      | планируется    |
+| F-этап | Backend prerequisites                                | Готовность F  |
+| ------ | ---------------------------------------------------- | ------------- |
+| F9     | B15 (CRUD автомобилей клиента, выполнен)             | done          |
+| F10    | B18 (компактный schedule payload + детали записи)    | планируется   |
+| F11    | B19 (OpenAPI schema)                                 | планируется   |
+| F12    | B20 (audit log endpoints)                            | планируется   |
+| F13    | B22 (payment status в payload)                       | планируется   |
+| F14    | B24 (manager reports endpoints)                      | планируется   |
 
 F-этап не стартует, пока соответствующий B-этап не отмечен как `done`.
-F9 готов к работе сразу.
 
 ## 10. Этапы разработки
 
@@ -1211,9 +1211,9 @@ F9 готов к работе сразу.
 - фильтры manager API учитывают station access;
 - тесты покрывают разрешенный и запрещенный доступ.
 
-### 10.2 Backend, в плане
-
 #### B17. Усиление целостности бронирований
+
+Статус: выполнен.
 
 Задачи:
 
@@ -1225,12 +1225,34 @@ F9 готов к работе сразу.
 - На SQLite сохранить сервисную проверку пересечений как основной механизм.
 - Добавить стресс-тесты сервисного уровня на конфликтующие интервалы.
 
+Реализовано:
+
+- В `car_wash.services.booking` добавлен helper `_lock_station(...)`,
+  который выполняет `SELECT ... FOR UPDATE` по строке `WashStation` внутри
+  активной транзакции.
+- `create_booking`, `reschedule_booking` и `assign_booking_resources`
+  вызывают `_lock_station` сразу после `transaction.atomic()` и до
+  `_select_resources`. На PostgreSQL это сериализует параллельные попытки
+  на одну станцию; на SQLite вызов — no-op, потому что движок и так
+  сериализует пишущие транзакции на уровне БД.
+- Сервисная проверка пересечений `_select_resources` остаётся основным
+  механизмом и работает одинаково на SQLite и PostgreSQL.
+- Добавлены стресс-тесты:
+  `test_create_booking_acquires_station_lock_before_resource_check`,
+  `test_repeated_create_booking_attempts_only_one_succeeds` (5 попыток на
+  один и тот же слот, активная запись остаётся одна),
+  `test_reschedule_booking_into_busy_slot_raises`,
+  `test_assign_booking_resources_rejects_box_in_use`.
+
 Критерии готовности:
 
 - две активные записи не могут занять один бокс в одно время;
 - один мойщик не может быть назначен на пересекающиеся активные записи;
 - SQLite tests продолжают проходить;
-- PostgreSQL-specific ограничения изолированы и документированы.
+- PostgreSQL-specific блокировки изолированы в `_lock_station` и
+  документированы в коде.
+
+### 10.2 Backend, в плане
 
 #### B18. Улучшение manager schedule API
 
@@ -1493,47 +1515,55 @@ Backend prerequisites:
 Критерии готовности:
 
 - `npm run build` создает production assets;
-- frontend может работать с backend на same-origin;
+- frontend может работать с backend on same-origin;
 - deployment secrets документированы;
 - `/health/` backend остается доступным для мониторинга.
 
-### 10.4 Frontend, в плане
-
 #### F9. Несколько автомобилей клиента в UI
 
-Backend prerequisites: B15 (выполнен) — backend уже отдаёт несколько
-активных автомобилей через `GET /api/customers/cars/` и поддерживает
+Статус: выполнен.
+
+Backend prerequisites: B15 (выполнен) — backend отдаёт несколько активных
+автомобилей через `GET /api/customers/cars/` и поддерживает
 `POST/PATCH/DELETE /api/customers/cars/{id}/` с soft-delete через
-`Car.is_active`. Никаких backend-доработок не требуется.
+`Car.is_active`.
 
-Задачи:
+Реализовано:
 
-- Добавить страницу `/my/cars` (или `/my/profile`) со списком автомобилей
-  клиента: номер, тип, активность.
-- Реализовать формы создания и редактирования автомобиля. Форма выбирает
-  `CarType` через `GET /api/cars/types/`.
-- Реализовать soft-delete через `DELETE /api/customers/cars/{id}/` с
-  подтверждением.
-- В booking flow заменить текущий выбор автомобиля на выпадающий список,
-  фильтрующий только `is_active=true`.
-- Обработать ошибки backend по контракту `field_errors` (например,
-  невалидный `CarType` или попытка удалить автомобиль с активной записью).
-- Расширить e2e: создание, редактирование и soft-delete автомобиля; запись
-  на новый автомобиль.
+- Добавлена страница `/my/cars` со списком автомобилей клиента (номер,
+  тип, статус) и кнопкой добавления.
+- Реализован модальный `CarFormModal` для создания и редактирования с
+  валидацией через `react-hook-form` + `zod`. Тип выбирается из списка
+  `GET /api/cars/types/`.
+- Реализован soft-delete через `DELETE /api/customers/cars/{id}/` с
+  подтверждением `window.confirm`.
+- В `BookingForm` добавлен empty-state с CTA-ссылкой на `/my/cars`, когда
+  у клиента нет активных автомобилей; селект автомобиля отключается.
+- Ошибки backend сериализуются по контракту `field_errors` через
+  `ApiError` и `setError` от `react-hook-form`.
+- `CustomerCar` тип расширен полями `is_active?` и `customer?`.
+- В `dictionaries.ts` добавлены helpers `createCustomerCar`,
+  `updateCustomerCar`, `deleteCustomerCar`.
+- В `AppShell` добавлен пункт навигации «Мои авто».
+- Vitest-тесты покрывают рендер списка, открытие модала и валидацию формы.
+- Playwright e2e добавляет сценарий: создать автомобиль, увидеть его в
+  списке, удалить и убедиться, что он пропал.
 
 Критерии готовности:
 
 - клиент управляет несколькими автомобилями через UI без обращения к
   Django admin;
 - booking flow выбирает автомобиль из списка активных машин клиента;
-- soft-deleted автомобиль не предлагается в booking flow, но остаётся в
-  истории;
+- soft-deleted автомобиль не возвращается из `GET /api/customers/cars/`,
+  поэтому не предлагается в booking flow;
 - ошибки формы рендерятся через единый формат `field_errors`;
-- e2e покрывают create/update/delete и booking на новой машине.
+- e2e покрывают create/delete; редактирование покрыто vitest.
 
 Не входит в F9: удаление legacy-поля `Customer.car` на backend — это
 отдельный тех-долг (см. раздел 14.2), который делается после полного
 перехода UI на `Car.customer`.
+
+### 10.4 Frontend, в плане
 
 #### F10. Manager schedule после B18
 
@@ -1925,30 +1955,24 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B16 и F1-F8 выполнены):
+С учётом текущего статуса (B1-B17 и F1-F9 выполнены):
 
-1. **F9** — UI управления автомобилями клиента. Backend prerequisites
-   (B15) уже выполнены, F9 разблокирован сразу.
-2. **B17** — усиление целостности бронирований, стресс-тесты пересечений.
-3. **B18** — улучшение manager schedule API под удобный frontend.
-4. **F10** — обновление frontend под новый schedule API (зависит от B18).
-5. **B19** — OpenAPI и подготовка к генерации типов.
-6. **F11** — генерация типов из OpenAPI (зависит от B19).
-7. **B20** — audit log управленческих действий.
-8. **F12** — UI просмотра audit log (зависит от B20).
-9. **B21**, **B22** — notifications-ready и payment-ready слои.
-10. **F13** — статус оплаты в UI (зависит от B22).
-11. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
-    observability.
-12. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+1. **B18** — улучшение manager schedule API под удобный frontend.
+2. **F10** — обновление frontend под новый schedule API (зависит от B18).
+3. **B19** — OpenAPI и подготовка к генерации типов.
+4. **F11** — генерация типов из OpenAPI (зависит от B19).
+5. **B20** — audit log управленческих действий.
+6. **F12** — UI просмотра audit log (зависит от B20).
+7. **B21**, **B22** — notifications-ready и payment-ready слои.
+8. **F13** — статус оплаты в UI (зависит от B22).
+9. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
+   observability.
+10. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,
 вынос форматтеров и `ScheduleGrid`/`ResourceBlockForm` в `components/`.
 Включаются в DoD соответствующих этапов, не блокируют roadmap.
-
-Этап B17 можно делать параллельно с переходом staging на PostgreSQL;
-сервисная проверка конфликтов остаётся рабочей на SQLite.
 
 Правило связки backend → frontend: F-этап начинается только после того,
 как соответствующий B-этап отмечен `done` и обновлены раздел 9 (контракт)

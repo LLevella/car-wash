@@ -44,6 +44,7 @@ from car_wash.permissions import (
 from car_wash.services.availability import get_available_slots
 from car_wash.services.booking import (
     BookingError,
+    assign_booking_resources,
     cancel_booking,
     create_booking,
     reschedule_booking,
@@ -1015,6 +1016,144 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(booking.starts_at, make_dt(self.day, 10))
         self.assertEqual(booking.ends_at, make_dt(self.day, 11))
         self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
+
+    def test_create_booking_acquires_station_lock_before_resource_check(self):
+        """The station row lock must be taken inside the booking transaction.
+        On PostgreSQL this serializes concurrent attempts; on SQLite the
+        engine itself serializes writers, so the call is a no-op but kept
+        for cross-engine parity."""
+        from car_wash.services import booking as booking_service
+
+        with mock.patch.object(
+            booking_service,
+            "_lock_station",
+            wraps=booking_service._lock_station,
+        ) as lock_spy:
+            create_booking(
+                customer=self.customer,
+                car=self.car,
+                wash_station=self.station,
+                wash_type=self.wash_type,
+                starts_at=make_dt(self.day, 9),
+            )
+
+        lock_spy.assert_called_once_with(self.station)
+
+    def test_repeated_create_booking_attempts_only_one_succeeds(self):
+        """Stress: launch N sequential create_booking calls into the same
+        slot with a single available box and washer. The first must commit,
+        the rest must raise BookingError without leaking active bookings."""
+        attempts = 5
+        successes = 0
+        failures = 0
+
+        for index in range(attempts):
+            extra_user = User.objects.create_user(
+                username=f"stress-customer-{index}",
+                password="password",
+            )
+            extra_car = Car.objects.create(
+                number=f"STRESS{index:03d}",
+                carType=self.car_type,
+            )
+            extra_customer = Customer.objects.create(
+                user=extra_user,
+                name=f"Стресс {index}",
+                phoneNumber=f"+7990000{index:04d}",
+                car=extra_car,
+            )
+            extra_car.customer = extra_customer
+            extra_car.save(update_fields=["customer"])
+
+            try:
+                create_booking(
+                    customer=extra_customer,
+                    car=extra_car,
+                    wash_station=self.station,
+                    wash_type=self.wash_type,
+                    starts_at=make_dt(self.day, 9),
+                )
+                successes += 1
+            except BookingError:
+                failures += 1
+
+        self.assertEqual(successes, 1)
+        self.assertEqual(failures, attempts - 1)
+        active_count = Booking.objects.filter(
+            wash_station=self.station,
+            wash_box=self.box,
+            starts_at=make_dt(self.day, 9),
+            status__in=(
+                Booking.Status.PENDING,
+                Booking.Status.CONFIRMED,
+                Booking.Status.IN_PROGRESS,
+            ),
+        ).count()
+        self.assertEqual(active_count, 1)
+
+    def test_reschedule_booking_into_busy_slot_raises(self):
+        """Reschedule must reject overlapping slots even when the only
+        conflicting booking belongs to a different customer."""
+        own_booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        other_customer, other_car = self._create_other_customer()
+        Booking.objects.create(
+            customer=other_customer,
+            car=other_car,
+            wash_station=self.station,
+            wash_box=self.box,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 11),
+            ends_at=make_dt(self.day, 12),
+            status=Booking.Status.CONFIRMED,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )
+
+        with self.assertRaises(BookingError):
+            reschedule_booking(
+                booking=own_booking,
+                starts_at=make_dt(self.day, 11),
+            )
+
+        own_booking.refresh_from_db()
+        self.assertEqual(own_booking.starts_at, make_dt(self.day, 9))
+
+    def test_assign_booking_resources_rejects_box_in_use(self):
+        own_booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        other_customer, other_car = self._create_other_customer()
+        Booking.objects.create(
+            customer=other_customer,
+            car=other_car,
+            wash_station=self.station,
+            wash_box=self.box,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+            ends_at=make_dt(self.day, 10),
+            status=Booking.Status.CONFIRMED,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )
+
+        with self.assertRaises(BookingError):
+            assign_booking_resources(
+                booking=own_booking,
+                wash_box=self.box,
+                washers=[self.washer],
+            )
 
     def test_booking_api_creates_booking(self):
         self._login_customer()

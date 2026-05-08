@@ -15,6 +15,19 @@ class BookingError(ValueError):
     """Raised when a booking operation cannot be completed."""
 
 
+def _lock_station(wash_station: WashStation) -> None:
+    """Acquire a row-level lock on the wash station to serialize concurrent
+    booking transactions on the same station. On PostgreSQL this issues
+    ``SELECT ... FOR UPDATE`` and forces a second concurrent transaction to
+    wait for the first to commit. On SQLite the call is a no-op because the
+    database itself serializes writers via a database-level lock, so the
+    behavior we want is already enforced by the engine."""
+
+    list(
+        WashStation.objects.select_for_update().filter(id=wash_station.id)
+    )
+
+
 def create_booking(
     *,
     customer: Customer,
@@ -35,6 +48,7 @@ def create_booking(
     ends_at = starts_at + timedelta(minutes=quote.duration_minutes)
 
     with transaction.atomic():
+        _lock_station(wash_station)
         selected_box, selected_washers = _select_resources(
             wash_station=wash_station,
             starts_at=starts_at,
@@ -85,6 +99,7 @@ def reschedule_booking(
     ends_at = starts_at + timedelta(minutes=quote.duration_minutes)
 
     with transaction.atomic():
+        _lock_station(booking.wash_station)
         selected_box, selected_washers = _select_resources(
             wash_station=booking.wash_station,
             starts_at=starts_at,
@@ -125,6 +140,7 @@ def assign_booking_resources(
     washers: list[Washer] | None = None,
 ) -> Booking:
     with transaction.atomic():
+        _lock_station(booking.wash_station)
         selected_box, selected_washers = _select_resources(
             wash_station=booking.wash_station,
             starts_at=booking.starts_at,
