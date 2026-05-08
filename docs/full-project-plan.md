@@ -9,11 +9,11 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-19 выполнены.
+- Backend этапы 1-20 выполнены.
 - Frontend MVP этапы 1-11 выполнены (включая production build/deploy,
   управление автомобилями клиента, обновлённый manager schedule UI и
   автогенерацию TypeScript-типов из OpenAPI).
-- В работе/планируется: backend этапы 20-24, расширение frontend (F12-F14),
+- В работе/планируется: backend этапы 21-24, расширение frontend (F12-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -386,6 +386,7 @@ GET    /api/manager/bookings/
 GET    /api/manager/bookings/{id}/
 PATCH  /api/manager/bookings/{id}/assign/
 PATCH  /api/manager/bookings/{id}/status/
+GET    /api/manager/bookings/{id}/audit/
 GET    /api/manager/shifts/
 POST   /api/manager/shifts/
 GET    /api/manager/resource-blocks/
@@ -401,7 +402,6 @@ GET    /health/
 ### 6.2 Запланированные endpoints
 
 - Manager-endpoints дневных агрегатов (этап B24).
-- Endpoint просмотра audit-истории записи (этап B20).
 
 ### 6.3 Формат ответов
 
@@ -1351,9 +1351,9 @@ F-этап не стартует, пока соответствующий B-эт
 - artifact `openapi-schema` поднимается из CI как источник истины для
   будущей кодогенерации (этап F11).
 
-### 10.2 Backend, в плане
-
 #### B20. Audit log для управленческих действий
+
+Статус: выполнен.
 
 Задачи:
 
@@ -1363,11 +1363,40 @@ F-этап не стартует, пока соответствующий B-эт
 - Хранить actor, action, entity type/id, timestamp и diff/context.
 - Добавить manager/admin endpoint для просмотра истории записи.
 
+Реализовано:
+
+- Добавлена модель `car_wash.AuditEvent` с полями `actor` (FK к
+  `auth.User`, `on_delete=SET_NULL`), `action` (TextChoices),
+  `entity_type`, `entity_id`, `context` (JSONField), `created_at` и
+  индексами по `(entity_type, entity_id, created_at)` и
+  `(actor, created_at)`.
+- Миграция `0009_auditevent_*` создаёт таблицу и индексы.
+- В `car_wash.services.booking` добавлен helper `_record_audit`, который
+  пишет аудит-событие внутри той же `transaction.atomic()`, что и
+  изменение записи. Все четыре операции
+  (`create_booking`, `cancel_booking`, `reschedule_booking`,
+  `assign_booking_resources`, `change_booking_status`) принимают
+  `actor=None` и фиксируют событие с контекстом (изменения времени,
+  статуса, бокса, мойщиков).
+- В `car_wash.manager_views` добавлен helper `_audit_create` для шифтов и
+  ResourceBlock, которые создаются напрямую через ORM, и хуки
+  `SHIFT_CREATED`, `RESOURCE_BLOCK_CREATED`.
+- Все клиентские/manager views передают `actor=request.user` в сервис.
+- Добавлен endpoint `GET /api/manager/bookings/{id}/audit/`
+  (`ManagerBookingAuditView`), возвращающий историю по конкретной записи.
+  Endpoint защищён `IsManager` и `ManagerStationAccess`.
+- Helper `_audit_event_payload` возвращает `id`, `action`, `actor`,
+  `actor_username`, `context`, `created_at`.
+- Добавлены тесты: жизненный цикл события (CREATE→RESCHEDULE→CANCEL),
+  manager endpoint возвращает историю с actor_username, и rejection при
+  отсутствии доступа к станции.
+
 Критерии готовности:
 
-- по каждой записи можно восстановить историю действий;
-- audit write не ломает основную операцию без явной причины;
-- тесты проверяют создание audit events.
+- по каждой записи можно восстановить полную историю manager-действий;
+- audit-запись делается транзакционно с самим изменением, fail-fast при
+  ошибке внутри транзакции;
+- тесты покрывают создание событий и endpoint просмотра истории.
 
 #### B21. Notifications-ready слой
 
@@ -2075,15 +2104,14 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B19 и F1-F11 выполнены):
+С учётом текущего статуса (B1-B20 и F1-F11 выполнены):
 
-1. **B20** — audit log управленческих действий.
-2. **F12** — UI просмотра audit log (зависит от B20).
-3. **B21**, **B22** — notifications-ready и payment-ready слои.
-4. **F13** — статус оплаты в UI (зависит от B22).
-5. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
+1. **F12** — UI просмотра audit log (B20 выполнен, разблокирован).
+2. **B21**, **B22** — notifications-ready и payment-ready слои.
+3. **F13** — статус оплаты в UI (зависит от B22).
+4. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
    observability.
-6. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+5. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,

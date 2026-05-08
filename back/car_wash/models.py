@@ -411,3 +411,48 @@ class ResourceBlock(models.Model):
         ]
         verbose_name = "Блокировка ресурса"
         verbose_name_plural = "Блокировки ресурсов"
+
+
+class AuditEvent(models.Model):
+    """Audit trail for manager-level domain actions."""
+
+    class Action(models.TextChoices):
+        BOOKING_CREATED = "booking_created", "Запись создана"
+        BOOKING_CANCELLED = "booking_cancelled", "Запись отменена"
+        BOOKING_RESCHEDULED = "booking_rescheduled", "Запись перенесена"
+        BOOKING_STATUS_CHANGED = "booking_status_changed", "Статус изменён"
+        BOOKING_ASSIGNED = "booking_assigned", "Назначение обновлено"
+        SHIFT_CREATED = "shift_created", "Смена создана"
+        RESOURCE_BLOCK_CREATED = "resource_block_created", "Блокировка создана"
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="car_wash_audit_events",
+    )
+    action = models.CharField("Действие", max_length=40, choices=Action.choices)
+    entity_type = models.CharField("Тип сущности", max_length=40)
+    entity_id = models.PositiveIntegerField("ID сущности")
+    context = models.JSONField("Контекст", default=dict, blank=True)
+    created_at = models.DateTimeField("Время", auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.action} {self.entity_type}#{self.entity_id}"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["entity_type", "entity_id", "created_at"],
+                name="audit_entity_time_idx",
+            ),
+            models.Index(
+                fields=["actor", "created_at"],
+                name="audit_actor_time_idx",
+            ),
+        ]
+        ordering = ("-created_at",)
+        verbose_name = "Аудит-событие"
+        verbose_name_plural = "Аудит-события"

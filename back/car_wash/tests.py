@@ -23,6 +23,7 @@ from cars.models import CarBrand, CarModel, CarType
 from customer.models import Car, Customer
 from personal.models import City, District, Washer, WashStation
 from car_wash.models import (
+    AuditEvent,
     Booking,
     BookingAssignment,
     DownPayment,
@@ -1161,6 +1162,76 @@ class AvailabilityServiceTests(TestCase):
 
         own_booking.refresh_from_db()
         self.assertEqual(own_booking.starts_at, make_dt(self.day, 9))
+
+    def test_audit_log_records_lifecycle_events(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+            actor=self.customer_user,
+        )
+        reschedule_booking(
+            booking=booking,
+            starts_at=make_dt(self.day, 11),
+            actor=self.manager_user,
+        )
+        cancel_booking(booking=booking, actor=self.manager_user)
+
+        events = list(
+            AuditEvent.objects.filter(
+                entity_type=Booking.__name__,
+                entity_id=booking.id,
+            ).order_by("created_at")
+        )
+        actions = [event.action for event in events]
+        self.assertEqual(
+            actions,
+            [
+                AuditEvent.Action.BOOKING_CREATED,
+                AuditEvent.Action.BOOKING_RESCHEDULED,
+                AuditEvent.Action.BOOKING_CANCELLED,
+            ],
+        )
+        self.assertEqual(events[0].actor_id, self.customer_user.id)
+        self.assertEqual(events[1].actor_id, self.manager_user.id)
+        self.assertIn("previous_starts_at", events[1].context)
+        self.assertEqual(events[2].context["previous_status"], Booking.Status.PENDING)
+
+    def test_manager_booking_audit_endpoint_returns_history(self):
+        self._login_manager()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+            actor=self.manager_user,
+        )
+
+        response = self.client.get(
+            reverse("api:manager:booking-audit", args=[booking.id]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        events = response.json()["data"]
+        self.assertGreaterEqual(len(events), 1)
+        first = events[0]
+        self.assertEqual(first["action"], AuditEvent.Action.BOOKING_CREATED)
+        self.assertEqual(first["actor"], self.manager_user.id)
+        self.assertEqual(first["actor_username"], self.manager_user.username)
+
+    def test_manager_booking_audit_endpoint_rejects_inaccessible_station(self):
+        self._login_manager()
+        booking = self._create_booking_without_manager_station_access()
+
+        response = self.client.get(
+            reverse("api:manager:booking-audit", args=[booking.id]),
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
 
     def test_assign_booking_resources_rejects_box_in_use(self):
         own_booking = create_booking(

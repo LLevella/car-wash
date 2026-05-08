@@ -160,6 +160,7 @@ class BookingListCreateView(APIView):
                 starts_at=starts_at,
                 wash_box=wash_box,
                 washers=washers,
+                actor=request.user,
             )
         except ValueError as exc:
             return _starts_at_error_response(exc)
@@ -187,7 +188,7 @@ class BookingCancelView(APIView):
             )
 
         try:
-            booking = cancel_booking(booking=booking)
+            booking = cancel_booking(booking=booking, actor=request.user)
         except BookingError as exc:
             return error_response(str(exc), code="booking_error")
 
@@ -232,6 +233,7 @@ class BookingRescheduleView(APIView):
                 starts_at=starts_at,
                 wash_box=wash_box,
                 washers=washers,
+                actor=request.user,
             )
         except ValueError as exc:
             return _starts_at_error_response(exc)
@@ -256,6 +258,7 @@ class BookingStatusView(APIView):
             booking = change_booking_status(
                 booking=booking,
                 status=request.data.get("status"),
+                actor=request.user,
             )
         except BookingError as exc:
             return error_response(

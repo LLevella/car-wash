@@ -13,7 +13,13 @@ from rest_framework.views import APIView
 from back.api import error_response, success_response, validation_error_response
 from personal.models import Washer, WashStation
 
-from car_wash.models import Booking, ResourceBlock, WashBox, WasherShift
+from car_wash.models import (
+    AuditEvent,
+    Booking,
+    ResourceBlock,
+    WashBox,
+    WasherShift,
+)
 from car_wash.permissions import (
     IsManager,
     can_access_station,
@@ -117,6 +123,23 @@ class ManagerBookingDetailView(APIView):
         return success_response(_booking_payload(booking))
 
 
+class ManagerBookingAuditView(APIView):
+    permission_classes = (IsManager,)
+
+    def get(self, request, pk):
+        booking = get_object_or_404(Booking, pk=pk)
+
+        if not can_access_station(request.user, booking.wash_station):
+            return _station_access_denied_response()
+
+        events = AuditEvent.objects.filter(
+            entity_type=Booking.__name__,
+            entity_id=booking.pk,
+        ).select_related("actor")
+
+        return success_response([_audit_event_payload(event) for event in events])
+
+
 class ManagerBookingListView(APIView):
     permission_classes = (IsManager,)
 
@@ -171,6 +194,7 @@ class ManagerBookingAssignView(APIView):
                 booking=booking,
                 wash_box=wash_box,
                 washers=washers,
+                actor=request.user,
             )
         except (BookingError, ValueError) as exc:
             return error_response(
@@ -195,6 +219,7 @@ class ManagerBookingStatusView(APIView):
             booking = change_booking_status(
                 booking=booking,
                 status=request.data.get("status"),
+                actor=request.user,
             )
         except BookingError as exc:
             return error_response(
@@ -253,6 +278,16 @@ class ManagerShiftListCreateView(APIView):
             )
             shift.full_clean()
             shift.save()
+            _audit_create(
+                request.user,
+                AuditEvent.Action.SHIFT_CREATED,
+                shift,
+                {
+                    "washer": shift.washer_id,
+                    "starts_at": shift.starts_at.isoformat(),
+                    "ends_at": shift.ends_at.isoformat(),
+                },
+            )
         except ValidationError as exc:
             return validation_error_response(exc)
         except ValueError as exc:
@@ -312,6 +347,18 @@ class ManagerResourceBlockListCreateView(APIView):
             )
             block.full_clean()
             block.save()
+            _audit_create(
+                request.user,
+                AuditEvent.Action.RESOURCE_BLOCK_CREATED,
+                block,
+                {
+                    "wash_box": block.wash_box_id,
+                    "washer": block.washer_id,
+                    "starts_at": block.starts_at.isoformat(),
+                    "ends_at": block.ends_at.isoformat(),
+                    "reason": block.reason,
+                },
+            )
         except ValidationError as exc:
             return validation_error_response(exc)
         except ValueError as exc:
@@ -434,6 +481,20 @@ def _get_required_washers(value):
     return washers
 
 
+def _audit_create(actor, action, entity, context):
+    """Helper used by manager views that build a model directly. The booking
+    service performs its own audit recording; only manager-side resources
+    that bypass the service (shifts, resource blocks) need this hook."""
+
+    AuditEvent.objects.create(
+        actor=actor if (actor is not None and getattr(actor, "is_authenticated", False)) else None,
+        action=action,
+        entity_type=type(entity).__name__,
+        entity_id=entity.pk,
+        context=context or {},
+    )
+
+
 def _schedule_summary(*, bookings, day_start, day_end):
     """Aggregate per-box and per-washer minutes for the requested day so the
     frontend can render load indicators without recomputing intervals on
@@ -490,6 +551,17 @@ def _shift_payload(shift):
         "starts_at": shift.starts_at.isoformat(),
         "ends_at": shift.ends_at.isoformat(),
         "is_active": shift.is_active,
+    }
+
+
+def _audit_event_payload(event):
+    return {
+        "id": event.id,
+        "action": event.action,
+        "actor": event.actor_id,
+        "actor_username": event.actor.username if event.actor_id else None,
+        "context": event.context,
+        "created_at": event.created_at.isoformat(),
     }
 
 

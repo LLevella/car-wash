@@ -6,13 +6,33 @@ from django.utils import timezone
 from customer.models import Car, Customer
 from personal.models import Washer, WashStation
 
-from car_wash.models import Booking, BookingAssignment, WashBox, WashType
+from car_wash.models import (
+    AuditEvent,
+    Booking,
+    BookingAssignment,
+    WashBox,
+    WashType,
+)
 from car_wash.services.availability import get_available_resources
 from car_wash.services.pricing import build_pricing_quote
 
 
 class BookingError(ValueError):
     """Raised when a booking operation cannot be completed."""
+
+
+def _record_audit(*, actor, action, entity, context=None):
+    """Persist an audit event next to the domain change. Always called
+    inside an active transaction so the audit row is committed atomically
+    with the operation it describes."""
+
+    AuditEvent.objects.create(
+        actor=actor if (actor is not None and getattr(actor, "is_authenticated", False)) else None,
+        action=action,
+        entity_type=type(entity).__name__,
+        entity_id=entity.pk,
+        context=context or {},
+    )
 
 
 def _lock_station(wash_station: WashStation) -> None:
@@ -37,6 +57,7 @@ def create_booking(
     starts_at,
     wash_box: WashBox | None = None,
     washers: list[Washer] | None = None,
+    actor=None,
 ) -> Booking:
     starts_at = _make_aware(starts_at)
     _validate_customer_car(customer=customer, car=car)
@@ -70,16 +91,35 @@ def create_booking(
             residual=quote.residual,
         )
         _replace_assignments(booking=booking, washers=selected_washers)
+        _record_audit(
+            actor=actor,
+            action=AuditEvent.Action.BOOKING_CREATED,
+            entity=booking,
+            context={
+                "wash_box": booking.wash_box_id,
+                "starts_at": booking.starts_at.isoformat(),
+                "ends_at": booking.ends_at.isoformat(),
+                "washers": [washer.id for washer in selected_washers],
+            },
+        )
 
     return booking
 
 
-def cancel_booking(*, booking: Booking) -> Booking:
+def cancel_booking(*, booking: Booking, actor=None) -> Booking:
     if booking.status == Booking.Status.COMPLETED:
         raise BookingError("Завершенную запись нельзя отменить.")
 
-    booking.status = Booking.Status.CANCELLED
-    booking.save(update_fields=["status", "updated_at"])
+    previous_status = booking.status
+    with transaction.atomic():
+        booking.status = Booking.Status.CANCELLED
+        booking.save(update_fields=["status", "updated_at"])
+        _record_audit(
+            actor=actor,
+            action=AuditEvent.Action.BOOKING_CANCELLED,
+            entity=booking,
+            context={"previous_status": previous_status},
+        )
     return booking
 
 
@@ -89,8 +129,11 @@ def reschedule_booking(
     starts_at,
     wash_box: WashBox | None = None,
     washers: list[Washer] | None = None,
+    actor=None,
 ) -> Booking:
     starts_at = _make_aware(starts_at)
+    previous_starts_at = booking.starts_at
+    previous_ends_at = booking.ends_at
     quote = build_pricing_quote(
         car_type=booking.car.carType,
         wash_type=booking.wash_type,
@@ -129,6 +172,19 @@ def reschedule_booking(
             ]
         )
         _replace_assignments(booking=booking, washers=selected_washers)
+        _record_audit(
+            actor=actor,
+            action=AuditEvent.Action.BOOKING_RESCHEDULED,
+            entity=booking,
+            context={
+                "previous_starts_at": previous_starts_at.isoformat(),
+                "previous_ends_at": previous_ends_at.isoformat(),
+                "starts_at": booking.starts_at.isoformat(),
+                "ends_at": booking.ends_at.isoformat(),
+                "wash_box": booking.wash_box_id,
+                "washers": [washer.id for washer in selected_washers],
+            },
+        )
 
     return booking
 
@@ -138,7 +194,9 @@ def assign_booking_resources(
     booking: Booking,
     wash_box: WashBox | None = None,
     washers: list[Washer] | None = None,
+    actor=None,
 ) -> Booking:
+    previous_box_id = booking.wash_box_id
     with transaction.atomic():
         _lock_station(booking.wash_station)
         selected_box, selected_washers = _select_resources(
@@ -152,17 +210,38 @@ def assign_booking_resources(
         booking.wash_box = selected_box
         booking.save(update_fields=["wash_box", "updated_at"])
         _replace_assignments(booking=booking, washers=selected_washers)
+        _record_audit(
+            actor=actor,
+            action=AuditEvent.Action.BOOKING_ASSIGNED,
+            entity=booking,
+            context={
+                "previous_wash_box": previous_box_id,
+                "wash_box": booking.wash_box_id,
+                "washers": [washer.id for washer in selected_washers],
+            },
+        )
 
     return booking
 
 
-def change_booking_status(*, booking: Booking, status: str) -> Booking:
+def change_booking_status(*, booking: Booking, status: str, actor=None) -> Booking:
     valid_statuses = {choice for choice, _ in Booking.Status.choices}
     if status not in valid_statuses:
         raise BookingError("Неизвестный статус записи.")
 
-    booking.status = status
-    booking.save(update_fields=["status", "updated_at"])
+    previous_status = booking.status
+    with transaction.atomic():
+        booking.status = status
+        booking.save(update_fields=["status", "updated_at"])
+        _record_audit(
+            actor=actor,
+            action=AuditEvent.Action.BOOKING_STATUS_CHANGED,
+            entity=booking,
+            context={
+                "previous_status": previous_status,
+                "status": status,
+            },
+        )
     return booking
 
 

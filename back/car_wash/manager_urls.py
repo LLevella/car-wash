@@ -4,6 +4,7 @@ from django.urls import path
 
 from car_wash.manager_views import (
     ManagerBookingAssignView,
+    ManagerBookingAuditView,
     ManagerBookingDetailView,
     ManagerBookingListView,
     ManagerBookingStatusView,
@@ -27,6 +28,11 @@ urlpatterns = [
         "bookings/<int:pk>/assign/",
         ManagerBookingAssignView.as_view(),
         name="booking-assign",
+    ),
+    path(
+        "bookings/<int:pk>/audit/",
+        ManagerBookingAuditView.as_view(),
+        name="booking-audit",
     ),
     path(
         "bookings/<int:pk>/status/",

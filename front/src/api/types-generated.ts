@@ -308,6 +308,22 @@ export interface paths {
         patch: operations["manager_bookings_assign_partial_update"];
         trace?: never;
     };
+    "/api/manager/bookings/{id}/audit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["manager_bookings_audit_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manager/bookings/{id}/status/": {
         parameters: {
             query?: never;
@@ -1099,6 +1115,34 @@ export interface operations {
                 };
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/vnd.api+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    manager_bookings_audit_retrieve: {
+        parameters: {
+            query?: {
+                format?: "json" | "vnd.api+json";
+            };
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
