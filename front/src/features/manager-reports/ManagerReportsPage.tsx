@@ -1,27 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { getStations } from "../../api/dictionaries";
 import { getManagerReports } from "../../api/manager";
-import type { BookingStatus, ManagerReports, Station } from "../../api/types";
+import type { ManagerReports, Station } from "../../api/types";
 import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
 import { Toolbar } from "../../components/Toolbar";
 
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
 const today = new Date().toISOString().slice(0, 10);
 
-const statusLabels: Record<BookingStatus, string> = {
-  cancelled: "Отменена",
-  completed: "Завершена",
-  confirmed: "Подтверждена",
-  draft: "Черновик",
-  in_progress: "В работе",
-  no_show: "Не приехал",
-  pending: "Ожидает",
-};
-
 export function ManagerReportsPage() {
+  const { t } = useTranslation();
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
@@ -60,14 +54,14 @@ export function ManagerReportsPage() {
             icon={<RefreshCw size={18} />}
             onClick={() => void reportsQuery.refetch()}
           >
-            Обновить
+            {t("common.actions.refresh")}
           </Button>
         }
-        title="Отчёты"
+        title={t("managerReports.title")}
       >
         <SelectField
           disabled={stationsQuery.isLoading}
-          label="Станция"
+          label={t("common.fields.station")}
           onChange={(event) => setSelectedStationId(Number(event.target.value))}
           value={selectedStationId ?? ""}
         >
@@ -78,90 +72,93 @@ export function ManagerReportsPage() {
           ))}
         </SelectField>
         <InputField
-          label="С"
+          label={t("managerReports.fromDate")}
           onChange={(event) => setDateFrom(event.target.value)}
           type="date"
           value={dateFrom}
         />
         <InputField
-          label="По"
+          label={t("managerReports.toDate")}
           onChange={(event) => setDateTo(event.target.value)}
           type="date"
           value={dateTo}
         />
       </Toolbar>
       {reportsQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка отчёта...</div>
+        <div className="panel state-panel">{t("managerReports.loading")}</div>
       ) : null}
       {error ? <div className="panel state-panel">{error}</div> : null}
-      {reports ? <ReportsView reports={reports} /> : null}
+      {reports ? <ReportsView reports={reports} t={t} /> : null}
     </section>
   );
 }
 
-function ReportsView({ reports }: { reports: ManagerReports }) {
+function ReportsView({ reports, t }: { reports: ManagerReports; t: TFn }) {
   return (
     <div className="reports-grid">
-      <article className="panel reports-card" aria-label="Сводка">
-        <h2>Сводка</h2>
+      <article className="panel reports-card" aria-label={t("managerReports.summary")}>
+        <h2>{t("managerReports.summary")}</h2>
         <dl>
           <div>
-            <dt>Период</dt>
+            <dt>{t("managerReports.period")}</dt>
             <dd>
               {reports.date_from}
               {reports.date_to !== reports.date_from ? ` – ${reports.date_to}` : null}
             </dd>
           </div>
           <div>
-            <dt>Записей</dt>
+            <dt>{t("managerReports.totalBookings")}</dt>
             <dd>{reports.bookings_total}</dd>
           </div>
           <div>
-            <dt>Оплачено</dt>
+            <dt>{t("managerReports.revenuePaid")}</dt>
             <dd>{formatMoney(reports.revenue_paid)}</dd>
           </div>
         </dl>
       </article>
-      <article className="panel reports-card" aria-label="По статусам">
-        <h2>По статусам</h2>
+      <article className="panel reports-card" aria-label={t("managerReports.byStatus")}>
+        <h2>{t("managerReports.byStatus")}</h2>
         {reports.bookings_by_status.length === 0 ? (
-          <p>Нет записей за период.</p>
+          <p>{t("managerReports.noBookings")}</p>
         ) : (
           <ul>
             {reports.bookings_by_status.map((row) => (
               <li key={row.status}>
-                <span>{statusLabels[row.status] ?? row.status}</span>
+                <span>{t(`bookingStatus.${row.status}` as const)}</span>
                 <strong>{row.count}</strong>
               </li>
             ))}
           </ul>
         )}
       </article>
-      <article className="panel reports-card" aria-label="Загрузка боксов">
-        <h2>Загрузка боксов</h2>
+      <article className="panel reports-card" aria-label={t("managerReports.boxUtil")}>
+        <h2>{t("managerReports.boxUtil")}</h2>
         {reports.box_utilization.length === 0 ? (
-          <p>Нет загруженных боксов за период.</p>
+          <p>{t("managerReports.noBoxes")}</p>
         ) : (
           <ul>
             {reports.box_utilization.map((row) => (
               <li key={row.wash_box}>
-                <span>Бокс #{row.wash_box}</span>
-                <strong>{formatMinutes(row.minutes)}</strong>
+                <span>{t("managerReports.boxLabel", { id: row.wash_box })}</span>
+                <strong>{formatMinutes(row.minutes, t)}</strong>
               </li>
             ))}
           </ul>
         )}
       </article>
-      <article className="panel reports-card" aria-label="Загрузка мойщиков">
-        <h2>Загрузка мойщиков</h2>
+      <article
+        className="panel reports-card"
+        aria-label={t("managerReports.washerUtil")}
+      >
+        <h2>{t("managerReports.washerUtil")}</h2>
         {reports.washer_utilization.length === 0 ? (
-          <p>Нет назначений за период.</p>
+          <p>{t("managerReports.noWashers")}</p>
         ) : (
           <ul>
             {reports.washer_utilization.map((row) => (
               <li key={row.washer}>
-                <span>Мойщик #{row.washer}</span>
-                <strong>{formatMinutes(row.minutes)}</strong>
+                <span>{t("managerReports.washerLabel", { id: row.washer })}</span>
+                <strong>{formatMinutes(row.minutes, t)}</strong>
               </li>
             ))}
           </ul>
@@ -186,17 +183,17 @@ function formatMoney(value: string) {
   }).format(amount);
 }
 
-function formatMinutes(minutes: number) {
+function formatMinutes(minutes: number, t: TFn) {
   if (!minutes) {
-    return "0 мин";
+    return `0 ${t("common.minutes")}`;
   }
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   if (!hours) {
-    return `${minutes} мин`;
+    return `${minutes} ${t("common.minutes")}`;
   }
   if (!remainder) {
-    return `${hours} ч`;
+    return `${hours} ${t("common.hours")}`;
   }
-  return `${hours} ч ${remainder} мин`;
+  return `${hours} ${t("common.hours")} ${remainder} ${t("common.minutes")}`;
 }

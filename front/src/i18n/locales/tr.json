@@ -1,0 +1,290 @@
+{
+  "common": {
+    "actions": {
+      "back": "Geri",
+      "cancel": "İptal",
+      "close": "Kapat",
+      "confirm": "Onayla",
+      "create": "Oluştur",
+      "delete": "Sil",
+      "edit": "Düzenle",
+      "login": "Giriş yap",
+      "logout": "Çıkış yap",
+      "refresh": "Yenile",
+      "save": "Kaydet"
+    },
+    "loading": "Yükleniyor...",
+    "states": {
+      "loadFailed": "Yüklenemedi.",
+      "saveFailed": "Kaydedilemedi.",
+      "empty": "Veri yok."
+    },
+    "fields": {
+      "date": "Tarih",
+      "time": "Saat",
+      "station": "İstasyon",
+      "box": "Boks",
+      "washer": "Yıkayıcı",
+      "washers": "Yıkayıcılar",
+      "service": "Hizmet",
+      "car": "Araç",
+      "cost": "Tutar",
+      "downPayment": "Ön ödeme",
+      "residual": "Kalan",
+      "phone": "Telefon",
+      "filter": "Filtre",
+      "status": "Durum",
+      "duration": "Süre",
+      "actions": "İşlemler",
+      "client": "Müşteri",
+      "type": "Tür",
+      "number": "Plaka",
+      "name": "Ad",
+      "starts": "Başlangıç",
+      "ends": "Bitiş"
+    },
+    "language": {
+      "label": "Dil",
+      "ru": "Русский",
+      "en": "English",
+      "tr": "Türkçe"
+    },
+    "user": {
+      "fallback": "Kullanıcı",
+      "roles": {
+        "customer": "Müşteri",
+        "manager": "Yönetici",
+        "admin": "Admin"
+      }
+    },
+    "minutes": "dk",
+    "hours": "sa"
+  },
+  "bookingStatus": {
+    "draft": "Taslak",
+    "pending": "Beklemede",
+    "confirmed": "Onaylandı",
+    "in_progress": "Devam ediyor",
+    "completed": "Tamamlandı",
+    "cancelled": "İptal edildi",
+    "no_show": "Gelmedi"
+  },
+  "paymentStatus": {
+    "unpaid": "Ödenmedi",
+    "awaiting": "Ödeme bekleniyor",
+    "paid": "Ödendi",
+    "refunded": "İade edildi"
+  },
+  "auditAction": {
+    "all": "Tümü",
+    "booking_created": "Oluşturuldu",
+    "booking_cancelled": "İptal",
+    "booking_rescheduled": "Yeniden planlama",
+    "booking_status_changed": "Durum değişikliği",
+    "booking_assigned": "Atama",
+    "shift_created": "Vardiya oluşturuldu",
+    "resource_block_created": "Engelleme oluşturuldu"
+  },
+  "nav": {
+    "book": "Rezervasyon",
+    "myBookings": "Rezervasyonlarım",
+    "myCars": "Araçlarım",
+    "schedule": "Program",
+    "managerBookings": "Siparişler",
+    "shifts": "Vardiyalar",
+    "resourceBlocks": "Engellemeler",
+    "reports": "Raporlar",
+    "login": "Giriş",
+    "appName": "Car Wash"
+  },
+  "auth": {
+    "loginTitle": "Giriş",
+    "registerTitle": "Kayıt ol",
+    "username": "Kullanıcı adı",
+    "password": "Parola",
+    "passwordConfirm": "Parolayı tekrarla",
+    "register": "Kayıt ol",
+    "registerCtaPrefix": "Hesabın yok mu?",
+    "registerCtaLink": "Kayıt ol",
+    "loginCtaPrefix": "Hesabın var mı?",
+    "loginCtaLink": "Giriş yap",
+    "errors": {
+      "usernameRequired": "Kullanıcı adı girin",
+      "usernameMin": "En az 3 karakter",
+      "passwordRequired": "Parola girin",
+      "passwordMin": "En az 8 karakter",
+      "confirmRequired": "Parolayı tekrarlayın",
+      "confirmMismatch": "Parolalar eşleşmiyor",
+      "nameRequired": "Adınızı girin",
+      "phoneRequired": "Telefon numarası girin"
+    }
+  },
+  "booking": {
+    "newTitle": "Yeni rezervasyon",
+    "myTitle": "Rezervasyonlarım",
+    "detailsTitle": "Rezervasyon detayları",
+    "detailsTitleWithId": "Rezervasyon #{{id}}",
+    "filters": {
+      "upcoming": "Gelecek",
+      "past": "Geçmiş",
+      "cancelled": "İptal edildi"
+    },
+    "service": "Yıkama tipi",
+    "freeSlots": "Uygun saatler",
+    "searchingSlots": "Uygun saatler aranıyor...",
+    "noSlots": "Seçilen tarih için uygun saat yok.",
+    "boxes": "Bokslar",
+    "washers": "Yıkayıcılar",
+    "create": "Rezervasyon oluştur",
+    "created": "Rezervasyon oluşturuldu",
+    "summaryCost": "Tutar: {{cost}}, ön ödeme: {{downPayment}}",
+    "loadingBookings": "Rezervasyonlar yükleniyor...",
+    "loadFailed": "Rezervasyonlar yüklenemedi.",
+    "loadingBooking": "Rezervasyon yükleniyor...",
+    "loadFailedBooking": "Rezervasyon yüklenemedi.",
+    "notFound": "Rezervasyon bulunamadı.",
+    "filterEmpty": "Filtreye uygun rezervasyon yok.",
+    "details": "Detaylar",
+    "reschedule": "Yeniden planla",
+    "cancel": "İptal et",
+    "cancelConfirm": "Bu rezervasyonu iptal et?",
+    "boxAssigned": "Boks {{box}}",
+    "boxUnassigned": "Atanacak",
+    "washersUnassigned": "Atanacak",
+    "washersUnassignedManager": "Atanmadı",
+    "rescheduleTitle": "Rezervasyon #{{id}} için yeni saat",
+    "currentTime": "Şu an",
+    "newDate": "Yeni tarih",
+    "rescheduleSubmit": "Yeniden planla",
+    "rescheduleCantDetectCar": "Bu rezervasyonun aracı belirlenemedi.",
+    "rescheduleCantCancel": "Bu rezervasyon artık iptal edilemez.",
+    "rescheduleCantReschedule": "Bu rezervasyon artık yeniden planlanamaz.",
+    "noCarsTitle": "Henüz aracınız yok. Rezervasyon yapmak için bir araç ekleyin.",
+    "goToCars": "Araçlarıma git",
+    "selectParameters": "Rezervasyon parametrelerini seçin."
+  },
+  "myCars": {
+    "title": "Araçlarım",
+    "addCar": "Araç ekle",
+    "loading": "Araçlar yükleniyor...",
+    "loadFailed": "Araç listesi yüklenemedi.",
+    "empty": "Henüz aracınız yok. Rezervasyon yapmak için ilk aracınızı ekleyin.",
+    "active": "Aktif",
+    "deleted": "Silindi",
+    "newCarTitle": "Yeni araç",
+    "editCarTitle": "Aracı düzenle",
+    "deleteConfirm": "{{plate}} aracını sil?",
+    "deleteFailed": "Araç silinemedi.",
+    "deleteAria": "{{plate}} sil",
+    "editAria": "{{plate}} düzenle",
+    "errors": {
+      "numberRequired": "Plaka numarasını girin",
+      "carTypeRequired": "Araç tipini seçin"
+    }
+  },
+  "managerSchedule": {
+    "title": "Program",
+    "loading": "Program yükleniyor...",
+    "loadFailed": "Program yüklenemedi.",
+    "shiftButton": "Vardiya",
+    "boxLabel": "Boks",
+    "clientCard": "Müşteri #{{id}}",
+    "openDetails": "Rezervasyon #{{id}} detayları",
+    "assignBooking": "Rezervasyon #{{id}} ata",
+    "noResources": {
+      "title": "Vardiya ve engelleme yok",
+      "subtitle": "Seçilen tarih için kaynak planlanmamış."
+    },
+    "blockFallback": "Kaynak engellemesi"
+  },
+  "managerBookings": {
+    "title": "Siparişler",
+    "orderTitle": "Sipariş #{{id}}",
+    "detailsFallback": "Sipariş detayları",
+    "backToList": "Siparişlere dön",
+    "loadFailed": "Sipariş yüklenemedi.",
+    "loading": "Sipariş yükleniyor...",
+    "notFound": "Sipariş bulunamadı.",
+    "assign": "Ata",
+    "client": "Müşteri #{{id}}",
+    "carPlaceholder": "Araç #{{id}}",
+    "boxFallback": "Boks #{{id}}",
+    "boxUnassigned": "Atanmadı",
+    "washersUnassigned": "Atanmadı",
+    "assignDialogTitle": "Sipariş #{{id}} ata",
+    "assignDialogFallback": "Sipariş ataması",
+    "saveAssignment": "Atamayı kaydet",
+    "currentBox": "Mevcut boks",
+    "autoBox": "Otomatik seçim",
+    "noShiftsHint": "Seçilen tarih için vardiya yok. Otomatik seçimi bırakabilirsiniz.",
+    "autoPickHint": "Boks veya yıkayıcı seçmezseniz, backend boş bir kaynağı atayacaktır.",
+    "filters": {
+      "any": "Tümü",
+      "selectStatus": "Herhangi bir durum"
+    },
+    "audit": {
+      "title": "İşlem geçmişi",
+      "filterLabel": "Olay tipi",
+      "loading": "Geçmiş yükleniyor...",
+      "loadFailed": "Geçmiş yüklenemedi.",
+      "empty": "Filtreye uyan olay yok.",
+      "actorLabel": "Yazar: {{name}}",
+      "actorSystem": "Yazar: sistem"
+    }
+  },
+  "managerShifts": {
+    "title": "Vardiyalar",
+    "create": "Vardiya oluştur",
+    "selectStation": "İstasyon ve yıkayıcı seçin.",
+    "isActive": "Aktif vardiya",
+    "loading": "Vardiyalar yükleniyor...",
+    "empty": "Seçilen tarih için vardiya yok.",
+    "active": "Aktif",
+    "inactive": "Devre dışı",
+    "errors": {
+      "endsAfterStart": "Bitiş başlangıçtan sonra olmalı.",
+      "missingFields": "Aralığın başlangıcını ve bitişini doldurun."
+    }
+  },
+  "managerResourceBlocks": {
+    "title": "Engellemeler",
+    "create": "Engelleme oluştur",
+    "loading": "Engellemeler yükleniyor...",
+    "empty": "Seçilen tarih için engelleme yok.",
+    "reason": "Sebep",
+    "reasonDefault": "Teknik mola",
+    "reasonFallback": "Sebep yok",
+    "resource": "Kaynak",
+    "wholeStation": "Tüm istasyon",
+    "selectStation": "İstasyon seçin.",
+    "boxFallback": "Boks {{id}}",
+    "washerFallback": "Yıkayıcı {{id}}",
+    "targets": {
+      "station": "Tüm istasyon",
+      "box": "Boks",
+      "washer": "Yıkayıcı"
+    },
+    "errors": {
+      "endsAfterStart": "Bitiş başlangıçtan sonra olmalı.",
+      "missingFields": "Aralığın başlangıcını ve bitişini doldurun."
+    }
+  },
+  "managerReports": {
+    "title": "Raporlar",
+    "fromDate": "Başlangıç",
+    "toDate": "Bitiş",
+    "loading": "Rapor yükleniyor...",
+    "summary": "Özet",
+    "byStatus": "Duruma göre",
+    "boxUtil": "Boks doluluk",
+    "washerUtil": "Yıkayıcı doluluk",
+    "period": "Dönem",
+    "totalBookings": "Rezervasyon",
+    "revenuePaid": "Ödendi",
+    "boxLabel": "Boks #{{id}}",
+    "washerLabel": "Yıkayıcı #{{id}}",
+    "noBookings": "Bu dönemde rezervasyon yok.",
+    "noBoxes": "Bu dönemde boks aktivitesi yok.",
+    "noWashers": "Bu dönemde yıkayıcı aktivitesi yok."
+  }
+}

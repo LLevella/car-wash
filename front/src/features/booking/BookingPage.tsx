@@ -10,6 +10,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
@@ -95,6 +96,7 @@ function CustomerBookingsView({
   stations: Station[];
   washTypes: WashType[];
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<BookingFilter>("upcoming");
   const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
@@ -109,7 +111,7 @@ function CustomerBookingsView({
   const cancelMutation = useMutation({
     mutationFn: async (booking: Booking) => {
       if (!canChangeBooking(booking)) {
-        throw new Error("Эту запись уже нельзя отменить.");
+        throw new Error(t("booking.rescheduleCantCancel"));
       }
 
       await ensureCsrfCookie();
@@ -129,7 +131,7 @@ function CustomerBookingsView({
       startsAt: string;
     }) => {
       if (!canChangeBooking(booking)) {
-        throw new Error("Эту запись уже нельзя перенести.");
+        throw new Error(t("booking.rescheduleCantReschedule"));
       }
 
       await ensureCsrfCookie();
@@ -154,7 +156,7 @@ function CustomerBookingsView({
   function handleCancel(booking: Booking) {
     cancelMutation.reset();
 
-    if (!window.confirm("Отменить эту запись?")) {
+    if (!window.confirm(t("booking.cancelConfirm"))) {
       return;
     }
 
@@ -184,30 +186,30 @@ function CustomerBookingsView({
             onClick={() => void bookingsQuery.refetch()}
             variant="secondary"
           >
-            Обновить
+            {t("common.actions.refresh")}
           </Button>
         }
-        title="Мои записи"
+        title={t("booking.myTitle")}
       >
         <SelectField
-          label="Фильтр"
+          label={t("common.fields.filter")}
           onChange={(event) => setFilter(event.target.value as BookingFilter)}
           value={filter}
         >
-          <option value="upcoming">Будущие</option>
-          <option value="past">Прошедшие</option>
-          <option value="cancelled">Отмененные</option>
+          <option value="upcoming">{t("booking.filters.upcoming")}</option>
+          <option value="past">{t("booking.filters.past")}</option>
+          <option value="cancelled">{t("booking.filters.cancelled")}</option>
         </SelectField>
       </Toolbar>
       <div className="booking-list">
         {bookingsQuery.isLoading ? (
-          <div className="panel state-panel">Загрузка записей...</div>
+          <div className="panel state-panel">{t("booking.loadingBookings")}</div>
         ) : null}
         {bookingsQuery.isError ? (
-          <div className="panel state-panel">Не удалось загрузить записи.</div>
+          <div className="panel state-panel">{t("booking.loadFailed")}</div>
         ) : null}
         {!bookingsQuery.isLoading && bookings.length === 0 ? (
-          <div className="panel state-panel">Записей по фильтру нет.</div>
+          <div className="panel state-panel">{t("booking.filterEmpty")}</div>
         ) : null}
         {bookings.map((booking) => (
           <article className="booking-card" key={booking.id}>
@@ -218,15 +220,15 @@ function CustomerBookingsView({
             <StatusBadge status={booking.status} />
             <dl className="booking-card__meta">
               <div>
-                <dt>Дата</dt>
+                <dt>{t("common.fields.date")}</dt>
                 <dd>{formatDate(booking.starts_at)}</dd>
               </div>
               <div>
-                <dt>Время</dt>
+                <dt>{t("common.fields.time")}</dt>
                 <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
               </div>
               <div>
-                <dt>Стоимость</dt>
+                <dt>{t("common.fields.cost")}</dt>
                 <dd>{formatMoney(booking.cost)}</dd>
               </div>
             </dl>
@@ -236,7 +238,7 @@ function CustomerBookingsView({
                 to={`/my/bookings/${booking.id}`}
               >
                 <Eye size={18} />
-                <span>Детали</span>
+                <span>{t("booking.details")}</span>
               </Link>
               <Button
                 disabled={
@@ -248,7 +250,7 @@ function CustomerBookingsView({
                 onClick={() => openRescheduleModal(booking)}
                 variant="secondary"
               >
-                Перенести
+                {t("booking.reschedule")}
               </Button>
               <Button
                 disabled={
@@ -260,7 +262,7 @@ function CustomerBookingsView({
                 onClick={() => handleCancel(booking)}
                 variant="danger"
               >
-                Отменить
+                {t("booking.cancel")}
               </Button>
             </div>
           </article>
@@ -292,6 +294,7 @@ function CustomerBookingDetailsView({
   stations: Station[];
   washTypes: WashType[];
 }) {
+  const { t } = useTranslation();
   const { bookingId } = useParams();
   const queryClient = useQueryClient();
   const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
@@ -315,7 +318,7 @@ function CustomerBookingDetailsView({
   const cancelMutation = useMutation({
     mutationFn: async (target: Booking) => {
       if (!canChangeBooking(target)) {
-        throw new Error("Эту запись уже нельзя отменить.");
+        throw new Error(t("booking.rescheduleCantCancel"));
       }
 
       await ensureCsrfCookie();
@@ -329,7 +332,7 @@ function CustomerBookingDetailsView({
   const rescheduleMutation = useMutation({
     mutationFn: async ({ target, startsAt }: { target: Booking; startsAt: string }) => {
       if (!canChangeBooking(target)) {
-        throw new Error("Эту запись уже нельзя перенести.");
+        throw new Error(t("booking.rescheduleCantReschedule"));
       }
 
       await ensureCsrfCookie();
@@ -353,7 +356,7 @@ function CustomerBookingDetailsView({
 
     cancelMutation.reset();
 
-    if (!window.confirm("Отменить эту запись?")) {
+    if (!window.confirm(t("booking.cancelConfirm"))) {
       return;
     }
 
@@ -375,19 +378,23 @@ function CustomerBookingDetailsView({
         actions={
           <Link className="button button--secondary" to="/my/bookings">
             <ArrowLeft size={18} />
-            <span>К списку</span>
+            <span>{t("common.actions.back")}</span>
           </Link>
         }
-        title={booking ? `Запись #${booking.id}` : "Детали записи"}
+        title={
+          booking
+            ? t("booking.detailsTitleWithId", { id: booking.id })
+            : t("booking.detailsTitle")
+        }
       />
       {bookingsQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка записи...</div>
+        <div className="panel state-panel">{t("booking.loadingBooking")}</div>
       ) : null}
       {bookingsQuery.isError ? (
-        <div className="panel state-panel">Не удалось загрузить запись.</div>
+        <div className="panel state-panel">{t("booking.loadFailedBooking")}</div>
       ) : null}
       {!bookingsQuery.isLoading && !bookingsQuery.isError && !booking ? (
-        <div className="panel state-panel">Запись не найдена.</div>
+        <div className="panel state-panel">{t("booking.notFound")}</div>
       ) : null}
       {booking ? (
         <article className="panel booking-detail">
@@ -400,41 +407,43 @@ function CustomerBookingDetailsView({
           </div>
           <dl className="booking-detail__grid">
             <div>
-              <dt>Дата</dt>
+              <dt>{t("common.fields.date")}</dt>
               <dd>{formatDate(booking.starts_at)}</dd>
             </div>
             <div>
-              <dt>Время</dt>
+              <dt>{t("common.fields.time")}</dt>
               <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
             </div>
             <div>
-              <dt>Автомобиль</dt>
+              <dt>{t("common.fields.car")}</dt>
               <dd>
-                {car ? `${car.number}, ${carTypeName(car)}` : `Авто ${booking.car}`}
+                {car
+                  ? `${car.number}, ${carTypeName(car)}`
+                  : t("managerBookings.carPlaceholder", { id: booking.car })}
               </dd>
             </div>
             <div>
-              <dt>Бокс</dt>
-              <dd>{bookingBoxName(booking)}</dd>
+              <dt>{t("common.fields.box")}</dt>
+              <dd>{bookingBoxName(booking, t)}</dd>
             </div>
             <div>
-              <dt>Стоимость</dt>
+              <dt>{t("common.fields.cost")}</dt>
               <dd>{formatMoney(booking.cost)}</dd>
             </div>
             <div>
-              <dt>Аванс</dt>
+              <dt>{t("common.fields.downPayment")}</dt>
               <dd>
                 {formatMoney(booking.down_payment)}{" "}
                 <PaymentBadge status={booking.payment_status} />
               </dd>
             </div>
             <div>
-              <dt>Остаток</dt>
+              <dt>{t("common.fields.residual")}</dt>
               <dd>{formatMoney(booking.residual)}</dd>
             </div>
             <div>
-              <dt>Мойщики</dt>
-              <dd>{bookingWashers(booking)}</dd>
+              <dt>{t("common.fields.washers")}</dt>
+              <dd>{bookingWashers(booking, t)}</dd>
             </div>
           </dl>
           {cancelError ? <div className="field__error">{cancelError}</div> : null}
@@ -448,7 +457,7 @@ function CustomerBookingDetailsView({
               }}
               variant="secondary"
             >
-              Перенести
+              {t("booking.reschedule")}
             </Button>
             <Button
               disabled={!canChangeBooking(booking) || cancelMutation.isPending}
@@ -456,7 +465,7 @@ function CustomerBookingDetailsView({
               onClick={handleCancel}
               variant="danger"
             >
-              Отменить
+              {t("booking.cancel")}
             </Button>
           </div>
         </article>
@@ -501,6 +510,7 @@ function RescheduleModal({
   stations: Station[];
   washTypes: WashType[];
 }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState(today);
   const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(null);
   const car = booking ? bookingCar(cars, booking) : undefined;
@@ -557,42 +567,47 @@ function RescheduleModal({
     <Modal
       onClose={onClose}
       open={Boolean(booking)}
-      title={booking ? `Перенос записи #${booking.id}` : "Перенос записи"}
+      title={
+        booking
+          ? t("booking.rescheduleTitle", { id: booking.id })
+          : t("booking.rescheduleTitle", { id: "" })
+      }
     >
       {booking ? (
         <div className="reschedule-form">
           <dl className="booking-card__meta">
             <div>
-              <dt>Станция</dt>
+              <dt>{t("common.fields.station")}</dt>
               <dd>{stationName(stations, booking.wash_station)}</dd>
             </div>
             <div>
-              <dt>Услуга</dt>
+              <dt>{t("common.fields.service")}</dt>
               <dd>{washTypeName(washTypes, booking.wash_type)}</dd>
             </div>
             <div>
-              <dt>Сейчас</dt>
+              <dt>{t("booking.currentTime")}</dt>
               <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
             </div>
           </dl>
           <InputField
-            label="Новая дата"
+            label={t("booking.newDate")}
             onChange={(event) => setDate(event.target.value)}
             type="date"
             value={date}
           />
-          <section className="reschedule-form__slots" aria-label="Новые слоты">
+          <section
+            className="reschedule-form__slots"
+            aria-label={t("booking.freeSlots")}
+          >
             <div className="slot-panel__header">
               <CalendarDays size={20} />
-              <h3>Свободное время</h3>
+              <h3>{t("booking.freeSlots")}</h3>
             </div>
             {!car ? (
-              <div className="state-panel">
-                Не удалось определить автомобиль для этой записи.
-              </div>
+              <div className="state-panel">{t("booking.rescheduleCantDetectCar")}</div>
             ) : null}
             {availabilityQuery.isFetching ? (
-              <div className="state-panel">Ищем свободные интервалы...</div>
+              <div className="state-panel">{t("booking.searchingSlots")}</div>
             ) : null}
             {availabilityError ? (
               <div className="state-panel">{availabilityError}</div>
@@ -601,7 +616,7 @@ function RescheduleModal({
             !availabilityError &&
             car &&
             !slots.length ? (
-              <div className="state-panel">Нет свободных слотов на выбранную дату.</div>
+              <div className="state-panel">{t("booking.noSlots")}</div>
             ) : null}
             {slots.length ? (
               <div className="slot-grid">
@@ -619,11 +634,11 @@ function RescheduleModal({
           <div className="summary">
             <dl>
               <div>
-                <dt>Новая дата</dt>
+                <dt>{t("booking.newDate")}</dt>
                 <dd>{selectedSlot ? formatDate(selectedSlot.starts_at) : "-"}</dd>
               </div>
               <div>
-                <dt>Время</dt>
+                <dt>{t("common.fields.time")}</dt>
                 <dd>
                   {selectedSlot
                     ? formatTimeRange(selectedSlot.starts_at, selectedSlot.ends_at)
@@ -631,21 +646,25 @@ function RescheduleModal({
                 </dd>
               </div>
               <div>
-                <dt>Длительность</dt>
-                <dd>{selectedSlot ? `${selectedSlot.duration_minutes} мин` : "-"}</dd>
+                <dt>{t("common.fields.duration")}</dt>
+                <dd>
+                  {selectedSlot
+                    ? `${selectedSlot.duration_minutes} ${t("common.minutes")}`
+                    : "-"}
+                </dd>
               </div>
             </dl>
             {error ? <div className="field__error">{error}</div> : null}
             <div className="modal__actions">
               <Button onClick={onClose} variant="secondary">
-                Закрыть
+                {t("common.actions.close")}
               </Button>
               <Button
                 disabled={!selectedSlot || pending}
                 icon={<CalendarClock size={18} />}
                 onClick={() => selectedSlot && onSubmit(selectedSlot.starts_at)}
               >
-                Перенести запись
+                {t("booking.rescheduleSubmit")}
               </Button>
             </div>
           </div>
@@ -686,6 +705,7 @@ function BookingForm({
   washTypes: WashType[];
   washTypesLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: session } = useCurrentUser();
   const [date, setDate] = useState(today);
@@ -772,7 +792,7 @@ function BookingForm({
         !selectedWashTypeId ||
         !selectedSlot
       ) {
-        throw new Error("Выберите параметры записи.");
+        throw new Error(t("booking.selectParameters"));
       }
 
       await ensureCsrfCookie();
@@ -804,9 +824,9 @@ function BookingForm({
 
   return (
     <section className="page">
-      <Toolbar title="Новая запись">
+      <Toolbar title={t("booking.newTitle")}>
         <InputField
-          label="Дата"
+          label={t("common.fields.date")}
           onChange={(event) => setDate(event.target.value)}
           type="date"
           value={date}
@@ -814,10 +834,10 @@ function BookingForm({
       </Toolbar>
       {noActiveCars ? (
         <div className="panel state-panel">
-          <p>У вас пока нет автомобилей. Добавьте первый, чтобы записаться на мойку.</p>
+          <p>{t("booking.noCarsTitle")}</p>
           <Link className="button button--primary" to="/my/cars">
             <CarIcon size={18} />
-            <span>Перейти к автомобилям</span>
+            <span>{t("booking.goToCars")}</span>
           </Link>
         </div>
       ) : null}
@@ -825,7 +845,7 @@ function BookingForm({
         <form className="panel form-grid">
           <SelectField
             disabled={loadingDictionaries}
-            label="Станция"
+            label={t("common.fields.station")}
             onChange={(event) => setSelectedStationId(Number(event.target.value))}
             value={selectedStationId ?? ""}
           >
@@ -837,7 +857,7 @@ function BookingForm({
           </SelectField>
           <SelectField
             disabled={loadingDictionaries || noActiveCars}
-            label="Автомобиль"
+            label={t("common.fields.car")}
             onChange={(event) => setSelectedCarId(Number(event.target.value))}
             value={selectedCarId ?? ""}
           >
@@ -849,7 +869,7 @@ function BookingForm({
           </SelectField>
           <SelectField
             disabled={loadingDictionaries}
-            label="Тип мойки"
+            label={t("booking.service")}
             onChange={(event) => setSelectedWashTypeId(Number(event.target.value))}
             value={selectedWashTypeId ?? ""}
           >
@@ -860,24 +880,24 @@ function BookingForm({
             ))}
           </SelectField>
           <InputField
-            label="Телефон"
+            label={t("common.fields.phone")}
             readOnly
             value={customerPhone(customerQuery.data)}
           />
         </form>
-        <section className="panel slot-panel" aria-label="Доступные слоты">
+        <section className="panel slot-panel" aria-label={t("booking.freeSlots")}>
           <div className="slot-panel__header">
             <CalendarDays size={20} />
-            <h2>Свободное время</h2>
+            <h2>{t("booking.freeSlots")}</h2>
           </div>
           {availabilityQuery.isFetching ? (
-            <div className="state-panel">Ищем свободные интервалы...</div>
+            <div className="state-panel">{t("booking.searchingSlots")}</div>
           ) : null}
           {availabilityError ? (
             <div className="state-panel">{availabilityError}</div>
           ) : null}
           {!availabilityQuery.isFetching && !availabilityError && !slots.length ? (
-            <div className="state-panel">Нет свободных слотов на выбранную дату.</div>
+            <div className="state-panel">{t("booking.noSlots")}</div>
           ) : null}
           {slots.length ? (
             <div className="slot-grid">
@@ -898,28 +918,34 @@ function BookingForm({
           <div className="summary">
             <dl>
               <div>
-                <dt>Длительность</dt>
-                <dd>{selectedSlot ? `${selectedSlot.duration_minutes} мин` : "-"}</dd>
+                <dt>{t("common.fields.duration")}</dt>
+                <dd>
+                  {selectedSlot
+                    ? `${selectedSlot.duration_minutes} ${t("common.minutes")}`
+                    : "-"}
+                </dd>
               </div>
               <div>
-                <dt>Боксы</dt>
+                <dt>{t("booking.boxes")}</dt>
                 <dd>{selectedSlot ? selectedSlot.boxes.length : "-"}</dd>
               </div>
               <div>
-                <dt>Мойщики</dt>
+                <dt>{t("booking.washers")}</dt>
                 <dd>{selectedSlot ? selectedSlot.washers.length : "-"}</dd>
               </div>
             </dl>
             {createdBooking ? (
               <div className="booking-result">
-                <strong>Запись создана</strong>
+                <strong>{t("booking.created")}</strong>
                 <span>
                   {formatDate(createdBooking.starts_at)},{" "}
                   {formatTimeRange(createdBooking.starts_at, createdBooking.ends_at)}
                 </span>
                 <span>
-                  Стоимость: {formatMoney(createdBooking.cost)}, аванс:{" "}
-                  {formatMoney(createdBooking.down_payment)}
+                  {t("booking.summaryCost", {
+                    cost: formatMoney(createdBooking.cost),
+                    downPayment: formatMoney(createdBooking.down_payment),
+                  })}
                 </span>
               </div>
             ) : null}
@@ -929,7 +955,7 @@ function BookingForm({
               icon={<Check size={18} />}
               onClick={() => createMutation.mutate()}
             >
-              Создать запись
+              {t("booking.create")}
             </Button>
           </div>
         </section>
@@ -968,13 +994,21 @@ function bookingCar(cars: CustomerCar[], booking: Booking) {
   return cars.find((car) => car.id === booking.car);
 }
 
-function bookingBoxName(booking: Booking) {
-  return booking.wash_box ? `Бокс ${booking.wash_box}` : "Будет назначен";
+function bookingBoxName(
+  booking: Booking,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  return booking.wash_box
+    ? t("booking.boxAssigned", { box: booking.wash_box })
+    : t("booking.boxUnassigned");
 }
 
-function bookingWashers(booking: Booking) {
+function bookingWashers(
+  booking: Booking,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
   if (!booking.washers.length) {
-    return "Будут назначены";
+    return t("booking.washersUnassigned");
   }
 
   return booking.washers.map((washer) => washer.name).join(", ");
@@ -989,7 +1023,7 @@ function carTypeId(car: CustomerCar | undefined) {
 }
 
 function carTypeName(car: CustomerCar) {
-  return typeof car.car_type === "number" ? `тип ${car.car_type}` : car.car_type.name;
+  return typeof car.car_type === "number" ? `#${car.car_type}` : car.car_type.name;
 }
 
 function customerPhone(customer: CurrentCustomer | null | undefined) {

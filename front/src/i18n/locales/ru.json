@@ -1,0 +1,290 @@
+{
+  "common": {
+    "actions": {
+      "back": "Назад",
+      "cancel": "Отмена",
+      "close": "Закрыть",
+      "confirm": "Подтвердить",
+      "create": "Создать",
+      "delete": "Удалить",
+      "edit": "Редактировать",
+      "login": "Войти",
+      "logout": "Выйти",
+      "refresh": "Обновить",
+      "save": "Сохранить"
+    },
+    "loading": "Загрузка...",
+    "states": {
+      "loadFailed": "Не удалось загрузить.",
+      "saveFailed": "Не удалось сохранить.",
+      "empty": "Нет данных."
+    },
+    "fields": {
+      "date": "Дата",
+      "time": "Время",
+      "station": "Станция",
+      "box": "Бокс",
+      "washer": "Мойщик",
+      "washers": "Мойщики",
+      "service": "Услуга",
+      "car": "Автомобиль",
+      "cost": "Стоимость",
+      "downPayment": "Аванс",
+      "residual": "Остаток",
+      "phone": "Телефон",
+      "filter": "Фильтр",
+      "status": "Статус",
+      "duration": "Длительность",
+      "actions": "Действия",
+      "client": "Клиент",
+      "type": "Тип",
+      "number": "Номер",
+      "name": "Имя",
+      "starts": "Начало",
+      "ends": "Окончание"
+    },
+    "language": {
+      "label": "Язык",
+      "ru": "Русский",
+      "en": "English",
+      "tr": "Türkçe"
+    },
+    "user": {
+      "fallback": "Пользователь",
+      "roles": {
+        "customer": "Клиент",
+        "manager": "Менеджер",
+        "admin": "Админ"
+      }
+    },
+    "minutes": "мин",
+    "hours": "ч"
+  },
+  "bookingStatus": {
+    "draft": "Черновик",
+    "pending": "Ожидает",
+    "confirmed": "Подтверждена",
+    "in_progress": "В работе",
+    "completed": "Завершена",
+    "cancelled": "Отменена",
+    "no_show": "Не приехал"
+  },
+  "paymentStatus": {
+    "unpaid": "Не оплачено",
+    "awaiting": "Ожидает оплаты",
+    "paid": "Оплачено",
+    "refunded": "Возврат"
+  },
+  "auditAction": {
+    "all": "Все",
+    "booking_created": "Создание",
+    "booking_cancelled": "Отмена",
+    "booking_rescheduled": "Перенос",
+    "booking_status_changed": "Смена статуса",
+    "booking_assigned": "Назначение",
+    "shift_created": "Создание смены",
+    "resource_block_created": "Блокировка"
+  },
+  "nav": {
+    "book": "Запись",
+    "myBookings": "Мои записи",
+    "myCars": "Мои авто",
+    "schedule": "Расписание",
+    "managerBookings": "Заказы",
+    "shifts": "Смены",
+    "resourceBlocks": "Блокировки",
+    "reports": "Отчёты",
+    "login": "Вход",
+    "appName": "Car Wash"
+  },
+  "auth": {
+    "loginTitle": "Вход",
+    "registerTitle": "Регистрация",
+    "username": "Логин",
+    "password": "Пароль",
+    "passwordConfirm": "Повторите пароль",
+    "register": "Зарегистрироваться",
+    "registerCtaPrefix": "Нет аккаунта?",
+    "registerCtaLink": "Зарегистрироваться",
+    "loginCtaPrefix": "Уже есть аккаунт?",
+    "loginCtaLink": "Войти",
+    "errors": {
+      "usernameRequired": "Введите логин",
+      "usernameMin": "Минимум 3 символа",
+      "passwordRequired": "Введите пароль",
+      "passwordMin": "Минимум 8 символов",
+      "confirmRequired": "Повторите пароль",
+      "confirmMismatch": "Пароли не совпадают",
+      "nameRequired": "Введите имя",
+      "phoneRequired": "Введите телефон"
+    }
+  },
+  "booking": {
+    "newTitle": "Новая запись",
+    "myTitle": "Мои записи",
+    "detailsTitle": "Детали записи",
+    "detailsTitleWithId": "Запись #{{id}}",
+    "filters": {
+      "upcoming": "Будущие",
+      "past": "Прошедшие",
+      "cancelled": "Отмененные"
+    },
+    "service": "Тип мойки",
+    "freeSlots": "Свободное время",
+    "searchingSlots": "Ищем свободные интервалы...",
+    "noSlots": "Нет свободных слотов на выбранную дату.",
+    "boxes": "Боксы",
+    "washers": "Мойщики",
+    "create": "Создать запись",
+    "created": "Запись создана",
+    "summaryCost": "Стоимость: {{cost}}, аванс: {{downPayment}}",
+    "loadingBookings": "Загрузка записей...",
+    "loadFailed": "Не удалось загрузить записи.",
+    "loadingBooking": "Загрузка записи...",
+    "loadFailedBooking": "Не удалось загрузить запись.",
+    "notFound": "Запись не найдена.",
+    "filterEmpty": "Записей по фильтру нет.",
+    "details": "Детали",
+    "reschedule": "Перенести",
+    "cancel": "Отменить",
+    "cancelConfirm": "Отменить эту запись?",
+    "boxAssigned": "Бокс {{box}}",
+    "boxUnassigned": "Будет назначен",
+    "washersUnassigned": "Будут назначены",
+    "washersUnassignedManager": "Не назначен",
+    "rescheduleTitle": "Перенос записи #{{id}}",
+    "currentTime": "Сейчас",
+    "newDate": "Новая дата",
+    "rescheduleSubmit": "Перенести запись",
+    "rescheduleCantDetectCar": "Не удалось определить автомобиль для этой записи.",
+    "rescheduleCantCancel": "Эту запись уже нельзя отменить.",
+    "rescheduleCantReschedule": "Эту запись уже нельзя перенести.",
+    "noCarsTitle": "У вас пока нет автомобилей. Добавьте первый, чтобы записаться на мойку.",
+    "goToCars": "Перейти к автомобилям",
+    "selectParameters": "Выберите параметры записи."
+  },
+  "myCars": {
+    "title": "Мои автомобили",
+    "addCar": "Добавить автомобиль",
+    "loading": "Загрузка автомобилей...",
+    "loadFailed": "Не удалось загрузить список автомобилей.",
+    "empty": "У вас пока нет автомобилей. Добавьте первый, чтобы создавать записи.",
+    "active": "Активен",
+    "deleted": "Удалён",
+    "newCarTitle": "Новый автомобиль",
+    "editCarTitle": "Редактировать автомобиль",
+    "deleteConfirm": "Удалить автомобиль {{plate}}?",
+    "deleteFailed": "Не удалось удалить автомобиль.",
+    "deleteAria": "Удалить {{plate}}",
+    "editAria": "Редактировать {{plate}}",
+    "errors": {
+      "numberRequired": "Укажите номер автомобиля",
+      "carTypeRequired": "Выберите тип автомобиля"
+    }
+  },
+  "managerSchedule": {
+    "title": "Расписание",
+    "loading": "Загрузка расписания...",
+    "loadFailed": "Не удалось загрузить расписание.",
+    "shiftButton": "Смена",
+    "boxLabel": "Бокс",
+    "clientCard": "Клиент #{{id}}",
+    "openDetails": "Детали заказа #{{id}}",
+    "assignBooking": "Назначить заказ #{{id}}",
+    "noResources": {
+      "title": "Нет смен и блокировок",
+      "subtitle": "Для выбранной даты ресурсы не заведены."
+    },
+    "blockFallback": "Блокировка ресурса"
+  },
+  "managerBookings": {
+    "title": "Заказы",
+    "orderTitle": "Заказ #{{id}}",
+    "detailsFallback": "Детали заказа",
+    "backToList": "К заказам",
+    "loadFailed": "Не удалось загрузить заказ.",
+    "loading": "Загрузка заказа...",
+    "notFound": "Заказ не найден.",
+    "assign": "Назначить",
+    "client": "Клиент #{{id}}",
+    "carPlaceholder": "Авто #{{id}}",
+    "boxFallback": "Бокс {{id}}",
+    "boxUnassigned": "Не назначен",
+    "washersUnassigned": "Не назначен",
+    "assignDialogTitle": "Назначение заказа #{{id}}",
+    "assignDialogFallback": "Назначение заказа",
+    "saveAssignment": "Сохранить назначение",
+    "currentBox": "Текущий бокс",
+    "autoBox": "Авто-подбор",
+    "noShiftsHint": "Нет смен на выбранную дату. Можно оставить авто-подбор.",
+    "autoPickHint": "Если не выбрать бокс или мойщика, backend подберёт свободный ресурс.",
+    "filters": {
+      "any": "Все",
+      "selectStatus": "Любой статус"
+    },
+    "audit": {
+      "title": "История действий",
+      "filterLabel": "Тип события",
+      "loading": "Загрузка истории...",
+      "loadFailed": "Не удалось загрузить историю.",
+      "empty": "Событий по фильтру нет.",
+      "actorLabel": "Автор: {{name}}",
+      "actorSystem": "Автор: система"
+    }
+  },
+  "managerShifts": {
+    "title": "Смены",
+    "create": "Создать смену",
+    "selectStation": "Выберите станцию и мойщика.",
+    "isActive": "Активная смена",
+    "loading": "Загрузка смен...",
+    "empty": "Смен на выбранную дату нет.",
+    "active": "Активна",
+    "inactive": "Отключена",
+    "errors": {
+      "endsAfterStart": "Окончание должно быть позже начала.",
+      "missingFields": "Заполните начало и окончание интервала."
+    }
+  },
+  "managerResourceBlocks": {
+    "title": "Блокировки",
+    "create": "Создать блокировку",
+    "loading": "Загрузка блокировок...",
+    "empty": "Блокировок на выбранную дату нет.",
+    "reason": "Причина",
+    "reasonDefault": "Технический перерыв",
+    "reasonFallback": "Без причины",
+    "resource": "Ресурс",
+    "wholeStation": "Станция целиком",
+    "selectStation": "Выберите станцию.",
+    "boxFallback": "Бокс {{id}}",
+    "washerFallback": "Мойщик {{id}}",
+    "targets": {
+      "station": "Станция целиком",
+      "box": "Бокс",
+      "washer": "Мойщик"
+    },
+    "errors": {
+      "endsAfterStart": "Окончание должно быть позже начала.",
+      "missingFields": "Заполните начало и окончание интервала."
+    }
+  },
+  "managerReports": {
+    "title": "Отчёты",
+    "fromDate": "С",
+    "toDate": "По",
+    "loading": "Загрузка отчёта...",
+    "summary": "Сводка",
+    "byStatus": "По статусам",
+    "boxUtil": "Загрузка боксов",
+    "washerUtil": "Загрузка мойщиков",
+    "period": "Период",
+    "totalBookings": "Записей",
+    "revenuePaid": "Оплачено",
+    "boxLabel": "Бокс #{{id}}",
+    "washerLabel": "Мойщик #{{id}}",
+    "noBookings": "Нет записей за период.",
+    "noBoxes": "Нет загруженных боксов за период.",
+    "noWashers": "Нет назначений за период."
+  }
+}

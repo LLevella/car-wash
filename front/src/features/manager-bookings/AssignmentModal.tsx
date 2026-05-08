@@ -1,5 +1,6 @@
 import { UserCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Booking } from "../../api/types";
 import { Button } from "../../components/Button";
@@ -26,6 +27,8 @@ type AssignmentModalProps = {
   washers: ResourceOption[];
 };
 
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
 export function AssignmentModal({
   booking,
   boxes,
@@ -35,6 +38,7 @@ export function AssignmentModal({
   pending,
   washers,
 }: AssignmentModalProps) {
+  const { t } = useTranslation();
   const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null);
   const [selectedWasherIds, setSelectedWasherIds] = useState<number[]>([]);
 
@@ -57,32 +61,36 @@ export function AssignmentModal({
     <Modal
       onClose={onClose}
       open={Boolean(booking)}
-      title={booking ? `Назначение заказа #${booking.id}` : "Назначение заказа"}
+      title={
+        booking
+          ? t("managerBookings.assignDialogTitle", { id: booking.id })
+          : t("managerBookings.assignDialogFallback")
+      }
     >
       {booking ? (
         <div className="assignment-form">
           <dl className="booking-card__meta">
             <div>
-              <dt>Время</dt>
+              <dt>{t("common.fields.time")}</dt>
               <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
             </div>
             <div>
-              <dt>Текущий бокс</dt>
-              <dd>{boxName(boxes, booking.wash_box)}</dd>
+              <dt>{t("managerBookings.currentBox")}</dt>
+              <dd>{boxName(boxes, booking.wash_box, t)}</dd>
             </div>
             <div>
-              <dt>Мойщики</dt>
-              <dd>{washerNames(booking)}</dd>
+              <dt>{t("common.fields.washers")}</dt>
+              <dd>{washerNames(booking, t)}</dd>
             </div>
           </dl>
           <SelectField
-            label="Бокс"
+            label={t("common.fields.box")}
             onChange={(event) =>
               setSelectedBoxId(event.target.value ? Number(event.target.value) : null)
             }
             value={selectedBoxId ?? ""}
           >
-            <option value="">Авто-подбор</option>
+            <option value="">{t("managerBookings.autoBox")}</option>
             {boxes.map((box) => (
               <option key={box.id} value={box.id}>
                 {box.name}
@@ -90,7 +98,7 @@ export function AssignmentModal({
             ))}
           </SelectField>
           <fieldset className="checkbox-group">
-            <legend>Мойщики</legend>
+            <legend>{t("common.fields.washers")}</legend>
             <div className="checkbox-list">
               {washers.map((washer) => (
                 <label className="checkbox-row" key={washer.id}>
@@ -103,19 +111,15 @@ export function AssignmentModal({
                 </label>
               ))}
               {!washers.length ? (
-                <div className="state-panel">
-                  Нет смен на выбранную дату. Можно оставить авто-подбор.
-                </div>
+                <div className="state-panel">{t("managerBookings.noShiftsHint")}</div>
               ) : null}
             </div>
           </fieldset>
-          <p className="field__hint">
-            Если не выбрать бокс или мойщика, backend подберет свободный ресурс.
-          </p>
+          <p className="field__hint">{t("managerBookings.autoPickHint")}</p>
           {error ? <div className="field__error">{error}</div> : null}
           <div className="modal__actions">
             <Button onClick={onClose} variant="secondary">
-              Закрыть
+              {t("common.actions.close")}
             </Button>
             <Button
               disabled={pending}
@@ -127,7 +131,7 @@ export function AssignmentModal({
                 })
               }
             >
-              Сохранить назначение
+              {t("managerBookings.saveAssignment")}
             </Button>
           </div>
         </div>
@@ -136,22 +140,25 @@ export function AssignmentModal({
   );
 }
 
-function boxName(boxes: ResourceOption[], boxId: number | null) {
+function boxName(boxes: ResourceOption[], boxId: number | null, t: TFn) {
   if (!boxId) {
-    return "Не назначен";
+    return t("managerBookings.boxUnassigned");
   }
 
-  return boxes.find((box) => box.id === boxId)?.name ?? `Бокс ${boxId}`;
+  return (
+    boxes.find((box) => box.id === boxId)?.name ??
+    t("managerBookings.boxFallback", { id: boxId })
+  );
 }
 
-function washerNames(booking: Booking) {
+function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
-    : "Не назначен";
+    : t("managerBookings.washersUnassigned");
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));

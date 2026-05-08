@@ -10,20 +10,23 @@ export function buildDateTime(day: string, time: string) {
   return `${day}T${time}:00`;
 }
 
-export function validateTimeRange(startsAt: string, endsAt: string) {
+export function validateTimeRange(
+  startsAt: string,
+  endsAt: string,
+): "missingFields" | "endsAfterStart" | null {
   if (!startsAt || !endsAt) {
-    return "Заполните начало и окончание интервала.";
+    return "missingFields";
   }
 
   if (startsAt >= endsAt) {
-    return "Окончание должно быть позже начала.";
+    return "endsAfterStart";
   }
 
   return null;
 }
 
 export function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -31,7 +34,7 @@ export function formatDate(value: string) {
 }
 
 export function formatTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));

@@ -1,0 +1,290 @@
+{
+  "common": {
+    "actions": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "close": "Close",
+      "confirm": "Confirm",
+      "create": "Create",
+      "delete": "Delete",
+      "edit": "Edit",
+      "login": "Sign in",
+      "logout": "Sign out",
+      "refresh": "Refresh",
+      "save": "Save"
+    },
+    "loading": "Loading...",
+    "states": {
+      "loadFailed": "Failed to load.",
+      "saveFailed": "Failed to save.",
+      "empty": "No data."
+    },
+    "fields": {
+      "date": "Date",
+      "time": "Time",
+      "station": "Station",
+      "box": "Bay",
+      "washer": "Washer",
+      "washers": "Washers",
+      "service": "Service",
+      "car": "Car",
+      "cost": "Cost",
+      "downPayment": "Down payment",
+      "residual": "Residual",
+      "phone": "Phone",
+      "filter": "Filter",
+      "status": "Status",
+      "duration": "Duration",
+      "actions": "Actions",
+      "client": "Customer",
+      "type": "Type",
+      "number": "Plate",
+      "name": "Name",
+      "starts": "Starts",
+      "ends": "Ends"
+    },
+    "language": {
+      "label": "Language",
+      "ru": "Русский",
+      "en": "English",
+      "tr": "Türkçe"
+    },
+    "user": {
+      "fallback": "User",
+      "roles": {
+        "customer": "Customer",
+        "manager": "Manager",
+        "admin": "Admin"
+      }
+    },
+    "minutes": "min",
+    "hours": "h"
+  },
+  "bookingStatus": {
+    "draft": "Draft",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "in_progress": "In progress",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "no_show": "No-show"
+  },
+  "paymentStatus": {
+    "unpaid": "Unpaid",
+    "awaiting": "Awaiting payment",
+    "paid": "Paid",
+    "refunded": "Refunded"
+  },
+  "auditAction": {
+    "all": "All",
+    "booking_created": "Created",
+    "booking_cancelled": "Cancelled",
+    "booking_rescheduled": "Rescheduled",
+    "booking_status_changed": "Status changed",
+    "booking_assigned": "Assignment",
+    "shift_created": "Shift created",
+    "resource_block_created": "Block created"
+  },
+  "nav": {
+    "book": "Book",
+    "myBookings": "My bookings",
+    "myCars": "My cars",
+    "schedule": "Schedule",
+    "managerBookings": "Bookings",
+    "shifts": "Shifts",
+    "resourceBlocks": "Blocks",
+    "reports": "Reports",
+    "login": "Sign in",
+    "appName": "Car Wash"
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "registerTitle": "Sign up",
+    "username": "Username",
+    "password": "Password",
+    "passwordConfirm": "Confirm password",
+    "register": "Sign up",
+    "registerCtaPrefix": "No account?",
+    "registerCtaLink": "Sign up",
+    "loginCtaPrefix": "Already have an account?",
+    "loginCtaLink": "Sign in",
+    "errors": {
+      "usernameRequired": "Enter your username",
+      "usernameMin": "At least 3 characters",
+      "passwordRequired": "Enter your password",
+      "passwordMin": "At least 8 characters",
+      "confirmRequired": "Confirm your password",
+      "confirmMismatch": "Passwords do not match",
+      "nameRequired": "Enter your name",
+      "phoneRequired": "Enter your phone number"
+    }
+  },
+  "booking": {
+    "newTitle": "New booking",
+    "myTitle": "My bookings",
+    "detailsTitle": "Booking details",
+    "detailsTitleWithId": "Booking #{{id}}",
+    "filters": {
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "cancelled": "Cancelled"
+    },
+    "service": "Wash type",
+    "freeSlots": "Available time",
+    "searchingSlots": "Looking for free slots...",
+    "noSlots": "No free slots on the selected day.",
+    "boxes": "Bays",
+    "washers": "Washers",
+    "create": "Create booking",
+    "created": "Booking created",
+    "summaryCost": "Cost: {{cost}}, deposit: {{downPayment}}",
+    "loadingBookings": "Loading bookings...",
+    "loadFailed": "Failed to load bookings.",
+    "loadingBooking": "Loading booking...",
+    "loadFailedBooking": "Failed to load the booking.",
+    "notFound": "Booking not found.",
+    "filterEmpty": "No bookings match the filter.",
+    "details": "Details",
+    "reschedule": "Reschedule",
+    "cancel": "Cancel",
+    "cancelConfirm": "Cancel this booking?",
+    "boxAssigned": "Bay {{box}}",
+    "boxUnassigned": "Will be assigned",
+    "washersUnassigned": "Will be assigned",
+    "washersUnassignedManager": "Unassigned",
+    "rescheduleTitle": "Reschedule booking #{{id}}",
+    "currentTime": "Current",
+    "newDate": "New date",
+    "rescheduleSubmit": "Reschedule booking",
+    "rescheduleCantDetectCar": "Could not determine the car for this booking.",
+    "rescheduleCantCancel": "This booking can no longer be cancelled.",
+    "rescheduleCantReschedule": "This booking can no longer be rescheduled.",
+    "noCarsTitle": "You don't have any cars yet. Add one to start booking.",
+    "goToCars": "Go to my cars",
+    "selectParameters": "Select booking parameters."
+  },
+  "myCars": {
+    "title": "My cars",
+    "addCar": "Add a car",
+    "loading": "Loading cars...",
+    "loadFailed": "Failed to load the list of cars.",
+    "empty": "You don't have any cars yet. Add the first one to start booking.",
+    "active": "Active",
+    "deleted": "Deleted",
+    "newCarTitle": "New car",
+    "editCarTitle": "Edit car",
+    "deleteConfirm": "Delete car {{plate}}?",
+    "deleteFailed": "Failed to delete the car.",
+    "deleteAria": "Delete {{plate}}",
+    "editAria": "Edit {{plate}}",
+    "errors": {
+      "numberRequired": "Enter the plate number",
+      "carTypeRequired": "Select the car type"
+    }
+  },
+  "managerSchedule": {
+    "title": "Schedule",
+    "loading": "Loading schedule...",
+    "loadFailed": "Failed to load schedule.",
+    "shiftButton": "Shift",
+    "boxLabel": "Bay",
+    "clientCard": "Customer #{{id}}",
+    "openDetails": "Open booking #{{id}}",
+    "assignBooking": "Assign booking #{{id}}",
+    "noResources": {
+      "title": "No shifts or blocks",
+      "subtitle": "No resources are scheduled for the selected day."
+    },
+    "blockFallback": "Resource block"
+  },
+  "managerBookings": {
+    "title": "Bookings",
+    "orderTitle": "Booking #{{id}}",
+    "detailsFallback": "Booking details",
+    "backToList": "Back to bookings",
+    "loadFailed": "Failed to load the booking.",
+    "loading": "Loading booking...",
+    "notFound": "Booking not found.",
+    "assign": "Assign",
+    "client": "Customer #{{id}}",
+    "carPlaceholder": "Car #{{id}}",
+    "boxFallback": "Bay #{{id}}",
+    "boxUnassigned": "Unassigned",
+    "washersUnassigned": "Unassigned",
+    "assignDialogTitle": "Assign booking #{{id}}",
+    "assignDialogFallback": "Assign booking",
+    "saveAssignment": "Save assignment",
+    "currentBox": "Current bay",
+    "autoBox": "Auto-pick",
+    "noShiftsHint": "No shifts on the selected day. You can leave auto-pick.",
+    "autoPickHint": "If you leave the bay or washer empty, the backend will pick a free resource.",
+    "filters": {
+      "any": "All",
+      "selectStatus": "Any status"
+    },
+    "audit": {
+      "title": "Action history",
+      "filterLabel": "Event type",
+      "loading": "Loading history...",
+      "loadFailed": "Failed to load the history.",
+      "empty": "No events match the filter.",
+      "actorLabel": "Author: {{name}}",
+      "actorSystem": "Author: system"
+    }
+  },
+  "managerShifts": {
+    "title": "Shifts",
+    "create": "Create shift",
+    "selectStation": "Select a station and a washer.",
+    "isActive": "Active shift",
+    "loading": "Loading shifts...",
+    "empty": "No shifts on the selected day.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "errors": {
+      "endsAfterStart": "End must be later than start.",
+      "missingFields": "Fill in start and end of the interval."
+    }
+  },
+  "managerResourceBlocks": {
+    "title": "Blocks",
+    "create": "Create block",
+    "loading": "Loading blocks...",
+    "empty": "No blocks for the selected day.",
+    "reason": "Reason",
+    "reasonDefault": "Maintenance break",
+    "reasonFallback": "No reason",
+    "resource": "Resource",
+    "wholeStation": "Whole station",
+    "selectStation": "Select a station.",
+    "boxFallback": "Bay {{id}}",
+    "washerFallback": "Washer {{id}}",
+    "targets": {
+      "station": "Whole station",
+      "box": "Bay",
+      "washer": "Washer"
+    },
+    "errors": {
+      "endsAfterStart": "End must be later than start.",
+      "missingFields": "Fill in start and end of the interval."
+    }
+  },
+  "managerReports": {
+    "title": "Reports",
+    "fromDate": "From",
+    "toDate": "To",
+    "loading": "Loading report...",
+    "summary": "Summary",
+    "byStatus": "By status",
+    "boxUtil": "Bay utilization",
+    "washerUtil": "Washer utilization",
+    "period": "Period",
+    "totalBookings": "Bookings",
+    "revenuePaid": "Paid",
+    "boxLabel": "Bay #{{id}}",
+    "washerLabel": "Washer #{{id}}",
+    "noBookings": "No bookings for this period.",
+    "noBoxes": "No bay activity for this period.",
+    "noWashers": "No washer activity for this period."
+  }
+}

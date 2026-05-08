@@ -1,11 +1,6 @@
-import type { PaymentStatus } from "../api/types";
+import { useTranslation } from "react-i18next";
 
-const labels: Record<PaymentStatus, string> = {
-  awaiting: "Ожидает оплаты",
-  paid: "Оплачено",
-  refunded: "Возврат",
-  unpaid: "Не оплачено",
-};
+import type { PaymentStatus } from "../api/types";
 
 const tones: Record<PaymentStatus, string> = {
   awaiting: "warning",
@@ -15,6 +10,7 @@ const tones: Record<PaymentStatus, string> = {
 };
 
 export function PaymentBadge({ status }: { status: PaymentStatus | undefined }) {
+  const { t } = useTranslation();
   if (!status) {
     return null;
   }
@@ -24,7 +20,7 @@ export function PaymentBadge({ status }: { status: PaymentStatus | undefined }) 
       className={`payment-badge payment-badge--${tones[status]}`}
       data-testid="payment-badge"
     >
-      {labels[status]}
+      {t(`paymentStatus.${status}` as const)}
     </span>
   );
 }

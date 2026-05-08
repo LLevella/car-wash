@@ -146,7 +146,7 @@ describe("App", () => {
     const list = await within(history).findByRole("list");
     expect(within(list).getByText("Создание")).toBeInTheDocument();
     expect(within(list).getByText("Смена статуса")).toBeInTheDocument();
-    expect(within(history).getByText("pending → confirmed")).toBeInTheDocument();
+    expect(within(history).getByText("Ожидает → Подтверждена")).toBeInTheDocument();
   });
 
   it("opens assignment dialog from manager schedule", async () => {

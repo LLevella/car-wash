@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, UserCheck } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
@@ -26,6 +27,8 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
 import { AssignmentModal } from "./AssignmentModal";
 
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
 const statusOptions: BookingStatus[] = [
   "draft",
   "pending",
@@ -36,17 +39,17 @@ const statusOptions: BookingStatus[] = [
   "no_show",
 ];
 
-const statusLabels: Record<BookingStatus, string> = {
-  cancelled: "Отменена",
-  completed: "Завершена",
-  confirmed: "Подтверждена",
-  draft: "Черновик",
-  in_progress: "В работе",
-  no_show: "Не приехал",
-  pending: "Ожидает",
-};
+const auditActionOptions: Array<AuditAction | "all"> = [
+  "all",
+  "booking_created",
+  "booking_rescheduled",
+  "booking_cancelled",
+  "booking_status_changed",
+  "booking_assigned",
+];
 
 export function ManagerBookingDetailsPage() {
+  const { t } = useTranslation();
   const { bookingId } = useParams();
   const queryClient = useQueryClient();
   const [assigningBooking, setAssigningBooking] = useState<Booking | null>(null);
@@ -80,7 +83,7 @@ export function ManagerBookingDetailsPage() {
   const statusMutation = useMutation({
     mutationFn: async (nextStatus: BookingStatus) => {
       if (!booking) {
-        throw new Error("Заказ не найден.");
+        throw new Error(t("managerBookings.notFound"));
       }
 
       await ensureCsrfCookie();
@@ -96,7 +99,7 @@ export function ManagerBookingDetailsPage() {
   const assignMutation = useMutation({
     mutationFn: async (payload: { washBox: number | null; washers: number[] }) => {
       if (!booking) {
-        throw new Error("Заказ не найден.");
+        throw new Error(t("managerBookings.notFound"));
       }
 
       await ensureCsrfCookie();
@@ -142,73 +145,78 @@ export function ManagerBookingDetailsPage() {
         actions={
           <Link className="button button--secondary" to="/manager/bookings">
             <ArrowLeft size={18} />
-            <span>К заказам</span>
+            <span>{t("managerBookings.backToList")}</span>
           </Link>
         }
-        title={booking ? `Заказ #${booking.id}` : "Детали заказа"}
+        title={
+          booking
+            ? t("managerBookings.orderTitle", { id: booking.id })
+            : t("managerBookings.detailsFallback")
+        }
       />
       {bookingQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка заказа...</div>
+        <div className="panel state-panel">{t("managerBookings.loading")}</div>
       ) : null}
       {bookingQuery.isError ? (
-        <div className="panel state-panel">Не удалось загрузить заказ.</div>
+        <div className="panel state-panel">{t("managerBookings.loadFailed")}</div>
       ) : null}
       {!bookingQuery.isLoading && !bookingQuery.isError && !booking ? (
-        <div className="panel state-panel">Заказ не найден.</div>
+        <div className="panel state-panel">{t("managerBookings.notFound")}</div>
       ) : null}
       {booking ? (
         <article className="panel booking-detail">
           <div className="booking-detail__header">
             <div>
-              <h2>{stationName(stations, booking.wash_station)}</h2>
-              <p>{washTypeName(washTypes, booking.wash_type)}</p>
+              <h2>{stationName(stations, booking.wash_station, t)}</h2>
+              <p>{washTypeName(washTypes, booking.wash_type, t)}</p>
             </div>
             <StatusBadge status={booking.status} />
           </div>
           <dl className="booking-detail__grid">
             <div>
-              <dt>Клиент</dt>
-              <dd>Клиент #{booking.customer}</dd>
+              <dt>{t("common.fields.client")}</dt>
+              <dd>{t("managerBookings.client", { id: booking.customer })}</dd>
             </div>
             <div>
-              <dt>Автомобиль</dt>
-              <dd>Авто #{booking.car}</dd>
+              <dt>{t("common.fields.car")}</dt>
+              <dd>{t("managerBookings.carPlaceholder", { id: booking.car })}</dd>
             </div>
             <div>
-              <dt>Дата</dt>
+              <dt>{t("common.fields.date")}</dt>
               <dd>{formatDate(booking.starts_at)}</dd>
             </div>
             <div>
-              <dt>Время</dt>
+              <dt>{t("common.fields.time")}</dt>
               <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
             </div>
             <div>
-              <dt>Бокс</dt>
-              <dd>{boxName(boxes, booking.wash_box)}</dd>
+              <dt>{t("common.fields.box")}</dt>
+              <dd>{boxName(boxes, booking.wash_box, t)}</dd>
             </div>
             <div>
-              <dt>Мойщики</dt>
-              <dd>{washerNames(booking)}</dd>
+              <dt>{t("common.fields.washers")}</dt>
+              <dd>{washerNames(booking, t)}</dd>
             </div>
             <div>
-              <dt>Стоимость</dt>
+              <dt>{t("common.fields.cost")}</dt>
               <dd>{formatMoney(booking.cost)}</dd>
             </div>
             <div>
-              <dt>Аванс</dt>
+              <dt>{t("common.fields.downPayment")}</dt>
               <dd>
                 {formatMoney(booking.down_payment)}{" "}
                 <PaymentBadge status={booking.payment_status} />
               </dd>
             </div>
             <div>
-              <dt>Остаток</dt>
+              <dt>{t("common.fields.residual")}</dt>
               <dd>{formatMoney(booking.residual)}</dd>
             </div>
             <div>
-              <dt>Статус</dt>
+              <dt>{t("common.fields.status")}</dt>
               <dd>
                 <select
+                  aria-label={t("common.fields.status")}
                   className="inline-select"
                   disabled={statusMutation.isPending}
                   onChange={(event) =>
@@ -218,7 +226,7 @@ export function ManagerBookingDetailsPage() {
                 >
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
-                      {statusLabels[status]}
+                      {t(`bookingStatus.${status}` as const)}
                     </option>
                   ))}
                 </select>
@@ -235,7 +243,7 @@ export function ManagerBookingDetailsPage() {
               }}
               variant="secondary"
             >
-              Назначить
+              {t("managerBookings.assign")}
             </Button>
           </div>
         </article>
@@ -254,26 +262,8 @@ export function ManagerBookingDetailsPage() {
   );
 }
 
-const auditActionOptions: Array<{ value: AuditAction | "all"; label: string }> = [
-  { value: "all", label: "Все" },
-  { value: "booking_created", label: "Создание" },
-  { value: "booking_rescheduled", label: "Перенос" },
-  { value: "booking_cancelled", label: "Отмена" },
-  { value: "booking_status_changed", label: "Смена статуса" },
-  { value: "booking_assigned", label: "Назначение" },
-];
-
-const auditActionLabels: Record<AuditAction, string> = {
-  booking_created: "Создание",
-  booking_cancelled: "Отмена",
-  booking_rescheduled: "Перенос",
-  booking_status_changed: "Смена статуса",
-  booking_assigned: "Назначение",
-  shift_created: "Создание смены",
-  resource_block_created: "Блокировка",
-};
-
 function AuditHistoryPanel({ bookingId }: { bookingId: number }) {
+  const { t } = useTranslation();
   const [actionFilter, setActionFilter] = useState<AuditAction | "all">("all");
   const auditQuery = useQuery({
     queryKey: ["manager", "booking-audit", bookingId],
@@ -290,11 +280,14 @@ function AuditHistoryPanel({ bookingId }: { bookingId: number }) {
   }, [auditQuery.data, actionFilter]);
 
   return (
-    <section aria-label="История действий" className="panel audit-history">
+    <section
+      aria-label={t("managerBookings.audit.title")}
+      className="panel audit-history"
+    >
       <header className="audit-history__header">
-        <h3>История действий</h3>
+        <h3>{t("managerBookings.audit.title")}</h3>
         <label className="audit-history__filter">
-          <span>Тип события</span>
+          <span>{t("managerBookings.audit.filterLabel")}</span>
           <select
             onChange={(event) =>
               setActionFilter(event.target.value as AuditAction | "all")
@@ -302,36 +295,38 @@ function AuditHistoryPanel({ bookingId }: { bookingId: number }) {
             value={actionFilter}
           >
             {auditActionOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+              <option key={option} value={option}>
+                {t(`auditAction.${option}` as const)}
               </option>
             ))}
           </select>
         </label>
       </header>
       {auditQuery.isLoading ? (
-        <div className="state-panel">Загрузка истории...</div>
+        <div className="state-panel">{t("managerBookings.audit.loading")}</div>
       ) : null}
       {auditQuery.isError ? (
-        <div className="state-panel">Не удалось загрузить историю.</div>
+        <div className="state-panel">{t("managerBookings.audit.loadFailed")}</div>
       ) : null}
       {!auditQuery.isLoading && events.length === 0 ? (
-        <div className="state-panel">Событий по фильтру нет.</div>
+        <div className="state-panel">{t("managerBookings.audit.empty")}</div>
       ) : null}
       {events.length ? (
         <ol className="audit-history__list">
           {events.map((event) => (
             <li className="audit-history__item" key={event.id}>
               <header>
-                <strong>{auditActionLabels[event.action] ?? event.action}</strong>
+                <strong>{t(`auditAction.${event.action}` as const)}</strong>
                 <time dateTime={event.created_at}>
                   {formatDateTime(event.created_at)}
                 </time>
               </header>
               <small>
                 {event.actor_username
-                  ? `Автор: ${event.actor_username}`
-                  : "Автор: система"}
+                  ? t("managerBookings.audit.actorLabel", {
+                      name: event.actor_username,
+                    })
+                  : t("managerBookings.audit.actorSystem")}
               </small>
               <ContextSummary event={event} />
             </li>
@@ -343,6 +338,7 @@ function AuditHistoryPanel({ bookingId }: { bookingId: number }) {
 }
 
 function ContextSummary({ event }: { event: AuditEvent }) {
+  const { t } = useTranslation();
   if (!event.context || Object.keys(event.context).length === 0) {
     return null;
   }
@@ -354,7 +350,8 @@ function ContextSummary({ event }: { event: AuditEvent }) {
   ) {
     return (
       <span>
-        {String(event.context.previous_status)} → {String(event.context.status)}
+        {t(`bookingStatus.${event.context.previous_status as BookingStatus}` as const)}{" "}
+        → {t(`bookingStatus.${event.context.status as BookingStatus}` as const)}
       </span>
     );
   }
@@ -376,7 +373,7 @@ function ContextSummary({ event }: { event: AuditEvent }) {
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
@@ -406,35 +403,43 @@ function uniqueWashers(
   );
 }
 
-function stationName(stations: Station[], stationId: number) {
+function stationName(stations: Station[], stationId: number, t: TFn) {
   return (
-    stations.find((station) => station.id === stationId)?.name ?? `Станция ${stationId}`
+    stations.find((station) => station.id === stationId)?.name ??
+    `${t("common.fields.station")} #${stationId}`
   );
 }
 
-function washTypeName(washTypes: WashType[], washTypeId: number) {
+function washTypeName(washTypes: WashType[], washTypeId: number, t: TFn) {
   return (
     washTypes.find((washType) => washType.id === washTypeId)?.name ??
-    `Услуга ${washTypeId}`
+    `${t("common.fields.service")} #${washTypeId}`
   );
 }
 
-function boxName(boxes: Array<{ id: number; name: string }>, boxId: number | null) {
+function boxName(
+  boxes: Array<{ id: number; name: string }>,
+  boxId: number | null,
+  t: TFn,
+) {
   if (!boxId) {
-    return "Не назначен";
+    return t("managerBookings.boxUnassigned");
   }
 
-  return boxes.find((box) => box.id === boxId)?.name ?? `Бокс ${boxId}`;
+  return (
+    boxes.find((box) => box.id === boxId)?.name ??
+    t("managerBookings.boxFallback", { id: boxId })
+  );
 }
 
-function washerNames(booking: Booking) {
+function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
-    : "Не назначен";
+    : t("managerBookings.washersUnassigned");
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -442,7 +447,7 @@ function formatDate(value: string) {
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));

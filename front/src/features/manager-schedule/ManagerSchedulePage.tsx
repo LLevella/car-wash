@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, Plus, RefreshCw, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
@@ -25,6 +26,8 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
 import { AssignmentModal } from "../manager-bookings/AssignmentModal";
 
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
 const today = new Date().toISOString().slice(0, 10);
 const defaultScheduleHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const statusOptions: BookingStatus[] = [
@@ -37,17 +40,8 @@ const statusOptions: BookingStatus[] = [
   "no_show",
 ];
 
-const statusLabels: Record<BookingStatus, string> = {
-  cancelled: "Отменена",
-  completed: "Завершена",
-  confirmed: "Подтверждена",
-  draft: "Черновик",
-  in_progress: "В работе",
-  no_show: "Не приехал",
-  pending: "Ожидает",
-};
-
 export function ManagerSchedulePage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
@@ -136,21 +130,21 @@ export function ManagerSchedulePage() {
         actions={
           <>
             <Button icon={<Plus size={18} />} variant="secondary">
-              Смена
+              {t("managerSchedule.shiftButton")}
             </Button>
             <Button
               icon={<RefreshCw size={18} />}
               onClick={() => void scheduleQuery.refetch()}
             >
-              Обновить
+              {t("common.actions.refresh")}
             </Button>
           </>
         }
-        title="Расписание"
+        title={t("managerSchedule.title")}
       >
         <SelectField
           disabled={stationsQuery.isLoading}
-          label="Станция"
+          label={t("common.fields.station")}
           onChange={(event) => setSelectedStationId(Number(event.target.value))}
           value={selectedStationId ?? ""}
         >
@@ -161,17 +155,17 @@ export function ManagerSchedulePage() {
           ))}
         </SelectField>
         <InputField
-          label="Дата"
+          label={t("common.fields.date")}
           onChange={(event) => setDate(event.target.value)}
           type="date"
           value={date}
         />
       </Toolbar>
       {scheduleQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка расписания...</div>
+        <div className="panel state-panel">{t("managerSchedule.loading")}</div>
       ) : null}
       {scheduleQuery.isError ? (
-        <div className="panel state-panel">Не удалось загрузить расписание.</div>
+        <div className="panel state-panel">{t("managerSchedule.loadFailed")}</div>
       ) : null}
       {hasSchedule ? (
         <>
@@ -227,6 +221,7 @@ function ScheduleGrid({
   statusPending: boolean;
   washTypes: WashType[];
 }) {
+  const { t } = useTranslation();
   const scheduleHours = useMemo(() => deriveScheduleHours(schedule), [schedule]);
   const bookingsByBoxAndHour = useMemo(
     () => groupBookingsByBoxAndHour(schedule.bookings),
@@ -245,9 +240,13 @@ function ScheduleGrid({
 
   return (
     <div className="schedule-wrap">
-      <div className="schedule-grid" role="table" aria-label="Расписание боксов">
+      <div
+        className="schedule-grid"
+        role="table"
+        aria-label={t("managerSchedule.title")}
+      >
         <div className="schedule-grid__head" role="row">
-          <div role="columnheader">Бокс</div>
+          <div role="columnheader">{t("managerSchedule.boxLabel")}</div>
           {scheduleHours.map((hour) => (
             <div key={hour} role="columnheader">
               {hour.toString().padStart(2, "0")}:00
@@ -259,7 +258,7 @@ function ScheduleGrid({
             <div className="schedule-grid__box" role="rowheader">
               <span>{box.name}</span>
               <small className="schedule-grid__load">
-                {formatLoadMinutes(boxLoadById.get(box.id) ?? 0)}
+                {formatLoadMinutes(boxLoadById.get(box.id) ?? 0, t)}
               </small>
             </div>
             {scheduleHours.map((hour) => {
@@ -270,23 +269,29 @@ function ScheduleGrid({
                 <div className="schedule-cell" key={`${box.id}-${hour}`} role="cell">
                   {cellBookings.map((booking) => (
                     <article className="schedule-card" key={booking.id}>
-                      <strong>Клиент #{booking.customer}</strong>
-                      <span>{washTypeName(washTypes, booking.wash_type)}</span>
+                      <strong>
+                        {t("managerSchedule.clientCard", { id: booking.customer })}
+                      </strong>
+                      <span>{washTypeName(washTypes, booking.wash_type, t)}</span>
                       <small>
                         {formatTimeRange(booking.starts_at, booking.ends_at)}
                       </small>
-                      <small>{washerNames(booking)}</small>
+                      <small>{washerNames(booking, t)}</small>
                       <StatusBadge status={booking.status} />
                       <div className="schedule-card__actions">
                         <Link
-                          aria-label={`Детали заказа #${booking.id}`}
+                          aria-label={t("managerSchedule.openDetails", {
+                            id: booking.id,
+                          })}
                           className="button button--secondary button--compact"
                           to={`/manager/bookings/${booking.id}`}
                         >
                           <Eye size={16} />
                         </Link>
                         <Button
-                          aria-label={`Назначить заказ #${booking.id}`}
+                          aria-label={t("managerSchedule.assignBooking", {
+                            id: booking.id,
+                          })}
                           className="button--compact"
                           icon={<UserCheck size={16} />}
                           onClick={() => onAssign(booking)}
@@ -294,6 +299,7 @@ function ScheduleGrid({
                         />
                       </div>
                       <select
+                        aria-label={t("common.fields.status")}
                         className="inline-select"
                         disabled={statusPending}
                         onChange={(event) =>
@@ -306,7 +312,7 @@ function ScheduleGrid({
                       >
                         {statusOptions.map((status) => (
                           <option key={status} value={status}>
-                            {statusLabels[status]}
+                            {t(`bookingStatus.${status}` as const)}
                           </option>
                         ))}
                       </select>
@@ -331,6 +337,7 @@ function ScheduleResources({
   shifts: WasherShift[];
   schedule: ManagerScheduleDay;
 }) {
+  const { t } = useTranslation();
   const washerLoadById = useMemo(
     () =>
       new Map(
@@ -343,26 +350,26 @@ function ScheduleResources({
   );
 
   return (
-    <section className="resource-strip" aria-label="Смены и блокировки">
+    <section className="resource-strip" aria-label={t("nav.shifts")}>
       {shifts.map((shift) => (
         <article className="resource-strip__item" key={`shift-${shift.id}`}>
           <strong>{shift.washer_name}</strong>
           <span>{formatTimeRange(shift.starts_at, shift.ends_at)}</span>
           <small className="resource-strip__load">
-            {formatLoadMinutes(washerLoadById.get(shift.washer) ?? 0)}
+            {formatLoadMinutes(washerLoadById.get(shift.washer) ?? 0, t)}
           </small>
         </article>
       ))}
       {blocks.map((block) => (
         <article className="resource-strip__item" key={`block-${block.id}`}>
-          <strong>{block.reason || "Блокировка ресурса"}</strong>
+          <strong>{block.reason || t("managerSchedule.blockFallback")}</strong>
           <span>{formatTimeRange(block.starts_at, block.ends_at)}</span>
         </article>
       ))}
       {!shifts.length && !blocks.length ? (
         <article className="resource-strip__item">
-          <strong>Нет смен и блокировок</strong>
-          <span>Для выбранной даты ресурсы не заведены.</span>
+          <strong>{t("managerSchedule.noResources.title")}</strong>
+          <span>{t("managerSchedule.noResources.subtitle")}</span>
         </article>
       ) : null}
     </section>
@@ -414,21 +421,21 @@ function stationLabel(station: Station) {
   return station.address ? `${station.name}, ${station.address}` : station.name;
 }
 
-function washTypeName(washTypes: WashType[], washTypeId: number) {
+function washTypeName(washTypes: WashType[], washTypeId: number, t: TFn) {
   return (
     washTypes.find((washType) => washType.id === washTypeId)?.name ??
-    `Услуга ${washTypeId}`
+    `${t("common.fields.service")} #${washTypeId}`
   );
 }
 
-function washerNames(booking: Booking) {
+function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
-    : "Мойщик не назначен";
+    : t("booking.washersUnassigned");
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
@@ -463,18 +470,18 @@ function deriveScheduleHours(schedule: ManagerScheduleDay): number[] {
   return Array.from({ length: max - min + 1 }, (_, index) => min + index);
 }
 
-function formatLoadMinutes(minutes: number): string {
+function formatLoadMinutes(minutes: number, t: TFn): string {
   if (!minutes) {
-    return "0 мин";
+    return `0 ${t("common.minutes")}`;
   }
 
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   if (!hours) {
-    return `${minutes} мин`;
+    return `${minutes} ${t("common.minutes")}`;
   }
   if (!remainder) {
-    return `${hours} ч`;
+    return `${hours} ${t("common.hours")}`;
   }
-  return `${hours} ч ${remainder} мин`;
+  return `${hours} ${t("common.hours")} ${remainder} ${t("common.minutes")}`;
 }

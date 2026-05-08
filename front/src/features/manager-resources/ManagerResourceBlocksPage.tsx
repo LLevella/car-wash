@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ensureCsrfCookie } from "../../api/auth";
 import { getStations } from "../../api/dictionaries";
@@ -24,8 +25,10 @@ import {
 } from "./resourceHelpers";
 
 type ResourceTarget = "station" | "box" | "washer";
+type TFn = (key: string, options?: Record<string, unknown>) => string;
 
 export function ManagerResourceBlocksPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
@@ -34,7 +37,7 @@ export function ManagerResourceBlocksPage() {
   const [washerId, setWasherId] = useState<number | null>(null);
   const [startsAt, setStartsAt] = useState("12:00");
   const [endsAt, setEndsAt] = useState("13:00");
-  const [reason, setReason] = useState("Технический перерыв");
+  const [reason, setReason] = useState(t("managerResourceBlocks.reasonDefault"));
 
   const stationsQuery = useQuery({
     queryKey: ["dictionaries", "stations"],
@@ -90,12 +93,12 @@ export function ManagerResourceBlocksPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedStationId) {
-        throw new Error("Выберите станцию.");
+        throw new Error(t("managerResourceBlocks.selectStation"));
       }
 
       const timeError = validateTimeRange(startsAt, endsAt);
       if (timeError) {
-        throw new Error(timeError);
+        throw new Error(t(`managerResourceBlocks.errors.${timeError}` as const));
       }
 
       await ensureCsrfCookie();
@@ -119,7 +122,10 @@ export function ManagerResourceBlocksPage() {
 
   const createError =
     createMutation.error instanceof Error ? createMutation.error.message : null;
-  const timeError = validateTimeRange(startsAt, endsAt);
+  const timeErrorKey = validateTimeRange(startsAt, endsAt);
+  const timeError = timeErrorKey
+    ? t(`managerResourceBlocks.errors.${timeErrorKey}` as const)
+    : null;
   const blocks = blocksQuery.data ?? [];
   const stations = stationsQuery.data ?? [];
   const createDisabled =
@@ -139,14 +145,14 @@ export function ManagerResourceBlocksPage() {
               void scheduleQuery.refetch();
             }}
           >
-            Обновить
+            {t("common.actions.refresh")}
           </Button>
         }
-        title="Блокировки"
+        title={t("managerResourceBlocks.title")}
       >
         <SelectField
           disabled={stationsQuery.isLoading}
-          label="Станция"
+          label={t("common.fields.station")}
           onChange={(event) => setSelectedStationId(Number(event.target.value))}
           value={selectedStationId ?? ""}
         >
@@ -157,7 +163,7 @@ export function ManagerResourceBlocksPage() {
           ))}
         </SelectField>
         <InputField
-          label="Дата"
+          label={t("common.fields.date")}
           onChange={(event) => setDate(event.target.value)}
           type="date"
           value={date}
@@ -165,17 +171,17 @@ export function ManagerResourceBlocksPage() {
       </Toolbar>
       <section className="panel form-grid">
         <SelectField
-          label="Ресурс"
+          label={t("managerResourceBlocks.resource")}
           onChange={(event) => setTarget(event.target.value as ResourceTarget)}
           value={target}
         >
-          <option value="station">Станция целиком</option>
-          <option value="box">Бокс</option>
-          <option value="washer">Мойщик</option>
+          <option value="station">{t("managerResourceBlocks.targets.station")}</option>
+          <option value="box">{t("managerResourceBlocks.targets.box")}</option>
+          <option value="washer">{t("managerResourceBlocks.targets.washer")}</option>
         </SelectField>
         <SelectField
           disabled={target !== "box" || !boxes.length}
-          label="Бокс"
+          label={t("common.fields.box")}
           onChange={(event) => setBoxId(Number(event.target.value))}
           value={boxId ?? ""}
         >
@@ -187,7 +193,7 @@ export function ManagerResourceBlocksPage() {
         </SelectField>
         <SelectField
           disabled={target !== "washer" || !washers.length}
-          label="Мойщик"
+          label={t("common.fields.washer")}
           onChange={(event) => setWasherId(Number(event.target.value))}
           value={washerId ?? ""}
         >
@@ -198,19 +204,19 @@ export function ManagerResourceBlocksPage() {
           ))}
         </SelectField>
         <InputField
-          label="Начало"
+          label={t("common.fields.starts")}
           onChange={(event) => setStartsAt(event.target.value)}
           type="time"
           value={startsAt}
         />
         <InputField
-          label="Окончание"
+          label={t("common.fields.ends")}
           onChange={(event) => setEndsAt(event.target.value)}
           type="time"
           value={endsAt}
         />
         <InputField
-          label="Причина"
+          label={t("managerResourceBlocks.reason")}
           onChange={(event) => setReason(event.target.value)}
           value={reason}
         />
@@ -220,36 +226,36 @@ export function ManagerResourceBlocksPage() {
             icon={<Plus size={18} />}
             onClick={() => createMutation.mutate()}
           >
-            Создать блокировку
+            {t("managerResourceBlocks.create")}
           </Button>
         </div>
         {timeError ? <div className="field__error">{timeError}</div> : null}
         {createError ? <div className="field__error">{createError}</div> : null}
       </section>
       {blocksQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка блокировок...</div>
+        <div className="panel state-panel">{t("managerResourceBlocks.loading")}</div>
       ) : null}
       {!blocksQuery.isLoading && blocks.length === 0 ? (
-        <div className="panel state-panel">Блокировок на выбранную дату нет.</div>
+        <div className="panel state-panel">{t("managerResourceBlocks.empty")}</div>
       ) : null}
       {blocks.length ? (
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Ресурс</th>
-                <th>Дата</th>
-                <th>Время</th>
-                <th>Причина</th>
+                <th>{t("managerResourceBlocks.resource")}</th>
+                <th>{t("common.fields.date")}</th>
+                <th>{t("common.fields.time")}</th>
+                <th>{t("managerResourceBlocks.reason")}</th>
               </tr>
             </thead>
             <tbody>
               {blocks.map((block) => (
                 <tr key={block.id}>
-                  <td>{blockTarget(block, boxes, washers)}</td>
+                  <td>{blockTarget(block, boxes, washers, t)}</td>
                   <td>{formatDate(block.starts_at)}</td>
                   <td>{formatTimeRange(block.starts_at, block.ends_at)}</td>
-                  <td>{block.reason || "Без причины"}</td>
+                  <td>{block.reason || t("managerResourceBlocks.reasonFallback")}</td>
                 </tr>
               ))}
             </tbody>
@@ -264,19 +270,21 @@ function blockTarget(
   block: ResourceBlock,
   boxes: Array<{ id: number; name: string }>,
   washers: Array<{ id: number; name: string }>,
+  t: TFn,
 ) {
   if (block.wash_box) {
     return (
-      boxes.find((box) => box.id === block.wash_box)?.name ?? `Бокс ${block.wash_box}`
+      boxes.find((box) => box.id === block.wash_box)?.name ??
+      t("managerResourceBlocks.boxFallback", { id: block.wash_box })
     );
   }
 
   if (block.washer) {
     return (
       washers.find((washer) => washer.id === block.washer)?.name ??
-      `Мойщик ${block.washer}`
+      t("managerResourceBlocks.washerFallback", { id: block.washer })
     );
   }
 
-  return "Станция целиком";
+  return t("managerResourceBlocks.wholeStation");
 }

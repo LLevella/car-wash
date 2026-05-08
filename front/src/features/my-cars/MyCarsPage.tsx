@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -20,16 +21,15 @@ import { InputField, SelectField } from "../../components/Field";
 import { Modal } from "../../components/Modal";
 import { Toolbar } from "../../components/Toolbar";
 
-const schema = z.object({
-  number: z.string().min(1, "Укажите номер автомобиля"),
-  car_type: z.coerce.number().int().positive("Выберите тип автомобиля"),
-});
-
-type CarFormValues = z.infer<typeof schema>;
+type CarFormValues = {
+  number: string;
+  car_type: number;
+};
 
 type EditingState = { mode: "create" } | { mode: "edit"; car: CustomerCar } | null;
 
 export function MyCarsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<EditingState>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
@@ -57,9 +57,7 @@ export function MyCarsPage() {
       setDeleteError(null);
     },
     onError: (error) => {
-      setDeleteError(
-        error instanceof Error ? error.message : "Не удалось удалить автомобиль.",
-      );
+      setDeleteError(error instanceof Error ? error.message : t("myCars.deleteFailed"));
     },
     onSettled: () => {
       setPendingDeleteId(null);
@@ -69,7 +67,7 @@ export function MyCarsPage() {
   });
 
   function handleDelete(car: CustomerCar) {
-    if (!window.confirm(`Удалить автомобиль ${car.number}?`)) {
+    if (!window.confirm(t("myCars.deleteConfirm", { plate: car.number }))) {
       return;
     }
 
@@ -85,40 +83,36 @@ export function MyCarsPage() {
             onClick={() => void carsQuery.refetch()}
             variant="secondary"
           >
-            Обновить
+            {t("common.actions.refresh")}
           </Button>
         }
-        title="Мои автомобили"
+        title={t("myCars.title")}
       >
         <Button
           icon={<Plus size={18} />}
           onClick={() => setEditing({ mode: "create" })}
         >
-          Добавить автомобиль
+          {t("myCars.addCar")}
         </Button>
       </Toolbar>
       {carsQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка автомобилей...</div>
+        <div className="panel state-panel">{t("myCars.loading")}</div>
       ) : null}
       {carsQuery.isError ? (
-        <div className="panel state-panel">
-          Не удалось загрузить список автомобилей.
-        </div>
+        <div className="panel state-panel">{t("myCars.loadFailed")}</div>
       ) : null}
       {!carsQuery.isLoading && !carsQuery.isError && cars.length === 0 ? (
-        <div className="panel state-panel">
-          У вас пока нет автомобилей. Добавьте первый, чтобы создавать записи.
-        </div>
+        <div className="panel state-panel">{t("myCars.empty")}</div>
       ) : null}
       {cars.length ? (
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Номер</th>
-                <th>Тип</th>
-                <th>Статус</th>
-                <th>Действия</th>
+                <th>{t("common.fields.number")}</th>
+                <th>{t("common.fields.type")}</th>
+                <th>{t("common.fields.status")}</th>
+                <th>{t("common.fields.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -126,16 +120,18 @@ export function MyCarsPage() {
                 <tr key={car.id}>
                   <td>{car.number}</td>
                   <td>{carTypeLabel(car)}</td>
-                  <td>{car.is_active === false ? "Удалён" : "Активен"}</td>
+                  <td>
+                    {car.is_active === false ? t("myCars.deleted") : t("myCars.active")}
+                  </td>
                   <td className="data-table__actions">
                     <Button
-                      aria-label={`Редактировать ${car.number}`}
+                      aria-label={t("myCars.editAria", { plate: car.number })}
                       icon={<Pencil size={16} />}
                       onClick={() => setEditing({ mode: "edit", car })}
                       variant="ghost"
                     />
                     <Button
-                      aria-label={`Удалить ${car.number}`}
+                      aria-label={t("myCars.deleteAria", { plate: car.number })}
                       disabled={
                         car.is_active === false ||
                         (deleteMutation.isPending && pendingDeleteId === car.id)
@@ -177,8 +173,17 @@ function CarFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const open = editing !== null;
   const fallbackCarTypeId = carTypes[0]?.id ?? 0;
+  const schema = useMemo(
+    () =>
+      z.object({
+        number: z.string().min(1, t("myCars.errors.numberRequired")),
+        car_type: z.coerce.number().int().positive(t("myCars.errors.carTypeRequired")),
+      }),
+    [t],
+  );
   const defaultValues = useMemo<CarFormValues>(() => {
     if (editing?.mode === "edit") {
       return {
@@ -236,7 +241,7 @@ function CarFormModal({
         }
       }
       setError("root", {
-        message: error instanceof Error ? error.message : "Не удалось сохранить.",
+        message: error instanceof Error ? error.message : t("common.states.saveFailed"),
       });
     }
   }
@@ -249,18 +254,20 @@ function CarFormModal({
         }
       }}
       open={open}
-      title={editing?.mode === "edit" ? "Редактировать автомобиль" : "Новый автомобиль"}
+      title={
+        editing?.mode === "edit" ? t("myCars.editCarTitle") : t("myCars.newCarTitle")
+      }
     >
       <form className="form-grid" onSubmit={handleSubmit(onSubmit)}>
         <InputField
           autoFocus
           error={errors.number?.message}
-          label="Номер"
+          label={t("common.fields.number")}
           {...register("number")}
         />
         <SelectField
           error={errors.car_type?.message}
-          label="Тип"
+          label={t("common.fields.type")}
           {...register("car_type")}
         >
           {carTypes.map((carType) => (
@@ -274,10 +281,10 @@ function CarFormModal({
         ) : null}
         <div className="modal__actions">
           <Button onClick={onClose} variant="secondary">
-            Отмена
+            {t("common.actions.cancel")}
           </Button>
           <Button disabled={isSubmitting || saveMutation.isPending} type="submit">
-            Сохранить
+            {t("common.actions.save")}
           </Button>
         </div>
       </form>
@@ -287,7 +294,7 @@ function CarFormModal({
 
 function carTypeLabel(car: CustomerCar) {
   if (typeof car.car_type === "number") {
-    return `Тип ${car.car_type}`;
+    return `#${car.car_type}`;
   }
 
   return car.car_type.name;

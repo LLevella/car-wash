@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ensureCsrfCookie } from "../../api/auth";
 import { getStations } from "../../api/dictionaries";
@@ -19,6 +20,7 @@ import {
 } from "./resourceHelpers";
 
 export function ManagerShiftsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
@@ -67,12 +69,12 @@ export function ManagerShiftsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!selectedStationId || !washerId) {
-        throw new Error("Выберите станцию и мойщика.");
+        throw new Error(t("managerShifts.selectStation"));
       }
 
       const timeError = validateTimeRange(startsAt, endsAt);
       if (timeError) {
-        throw new Error(timeError);
+        throw new Error(t(`managerShifts.errors.${timeError}` as const));
       }
 
       await ensureCsrfCookie();
@@ -92,7 +94,10 @@ export function ManagerShiftsPage() {
 
   const createError =
     createMutation.error instanceof Error ? createMutation.error.message : null;
-  const timeError = validateTimeRange(startsAt, endsAt);
+  const timeErrorKey = validateTimeRange(startsAt, endsAt);
+  const timeError = timeErrorKey
+    ? t(`managerShifts.errors.${timeErrorKey}` as const)
+    : null;
   const shifts = shiftsQuery.data ?? [];
   const stations = stationsQuery.data ?? [];
 
@@ -104,14 +109,14 @@ export function ManagerShiftsPage() {
             icon={<RefreshCw size={18} />}
             onClick={() => void shiftsQuery.refetch()}
           >
-            Обновить
+            {t("common.actions.refresh")}
           </Button>
         }
-        title="Смены"
+        title={t("managerShifts.title")}
       >
         <SelectField
           disabled={stationsQuery.isLoading}
-          label="Станция"
+          label={t("common.fields.station")}
           onChange={(event) => setSelectedStationId(Number(event.target.value))}
           value={selectedStationId ?? ""}
         >
@@ -122,7 +127,7 @@ export function ManagerShiftsPage() {
           ))}
         </SelectField>
         <InputField
-          label="Дата"
+          label={t("common.fields.date")}
           onChange={(event) => setDate(event.target.value)}
           type="date"
           value={date}
@@ -131,7 +136,7 @@ export function ManagerShiftsPage() {
       <section className="panel form-grid">
         <SelectField
           disabled={!washers.length}
-          label="Мойщик"
+          label={t("common.fields.washer")}
           onChange={(event) => setWasherId(Number(event.target.value))}
           value={washerId ?? ""}
         >
@@ -142,13 +147,13 @@ export function ManagerShiftsPage() {
           ))}
         </SelectField>
         <InputField
-          label="Начало"
+          label={t("common.fields.starts")}
           onChange={(event) => setStartsAt(event.target.value)}
           type="time"
           value={startsAt}
         />
         <InputField
-          label="Окончание"
+          label={t("common.fields.ends")}
           onChange={(event) => setEndsAt(event.target.value)}
           type="time"
           value={endsAt}
@@ -159,7 +164,7 @@ export function ManagerShiftsPage() {
             onChange={(event) => setIsActive(event.target.checked)}
             type="checkbox"
           />
-          <span>Активная смена</span>
+          <span>{t("managerShifts.isActive")}</span>
         </label>
         <div className="form-actions">
           <Button
@@ -167,27 +172,27 @@ export function ManagerShiftsPage() {
             icon={<Plus size={18} />}
             onClick={() => createMutation.mutate()}
           >
-            Создать смену
+            {t("managerShifts.create")}
           </Button>
         </div>
         {timeError ? <div className="field__error">{timeError}</div> : null}
         {createError ? <div className="field__error">{createError}</div> : null}
       </section>
       {shiftsQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка смен...</div>
+        <div className="panel state-panel">{t("managerShifts.loading")}</div>
       ) : null}
       {!shiftsQuery.isLoading && shifts.length === 0 ? (
-        <div className="panel state-panel">Смен на выбранную дату нет.</div>
+        <div className="panel state-panel">{t("managerShifts.empty")}</div>
       ) : null}
       {shifts.length ? (
         <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Мойщик</th>
-                <th>Дата</th>
-                <th>Время</th>
-                <th>Статус</th>
+                <th>{t("common.fields.washer")}</th>
+                <th>{t("common.fields.date")}</th>
+                <th>{t("common.fields.time")}</th>
+                <th>{t("common.fields.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -196,7 +201,11 @@ export function ManagerShiftsPage() {
                   <td>{shift.washer_name}</td>
                   <td>{formatDate(shift.starts_at)}</td>
                   <td>{formatTimeRange(shift.starts_at, shift.ends_at)}</td>
-                  <td>{shift.is_active ? "Активна" : "Отключена"}</td>
+                  <td>
+                    {shift.is_active
+                      ? t("managerShifts.active")
+                      : t("managerShifts.inactive")}
+                  </td>
                 </tr>
               ))}
             </tbody>

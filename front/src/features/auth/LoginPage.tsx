@@ -1,5 +1,7 @@
 import { LogIn } from "lucide-react";
+import { useMemo } from "react";
 import { useForm, type UseFormSetError } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,18 +12,25 @@ import { InputField } from "../../components/Field";
 import { Toolbar } from "../../components/Toolbar";
 import { defaultPathFor, useCurrentUser, useLoginMutation } from "./useAuth";
 
-const schema = z.object({
-  username: z.string().min(1, "Введите логин"),
-  password: z.string().min(1, "Введите пароль"),
-});
-
-type LoginForm = z.infer<typeof schema>;
+type LoginForm = {
+  username: string;
+  password: string;
+};
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const loginMutation = useLoginMutation();
   const { data: session, isLoading } = useCurrentUser();
+  const schema = useMemo(
+    () =>
+      z.object({
+        username: z.string().min(1, t("auth.errors.usernameRequired")),
+        password: z.string().min(1, t("auth.errors.passwordRequired")),
+      }),
+    [t],
+  );
   const {
     formState: { errors },
     handleSubmit,
@@ -50,7 +59,7 @@ export function LoginPage() {
   if (isLoading) {
     return (
       <section className="page page--narrow">
-        <div className="panel state-panel">Загрузка...</div>
+        <div className="panel state-panel">{t("common.loading")}</div>
       </section>
     );
   }
@@ -61,18 +70,18 @@ export function LoginPage() {
 
   return (
     <section className="page page--narrow">
-      <Toolbar title="Вход" />
+      <Toolbar title={t("auth.loginTitle")} />
       <form className="panel form-grid" onSubmit={handleSubmit(onSubmit)}>
         <InputField
           autoComplete="username"
           error={errors.username?.message ?? errors.root?.message}
-          label="Логин"
+          label={t("auth.username")}
           {...register("username")}
         />
         <InputField
           autoComplete="current-password"
           error={errors.password?.message}
-          label="Пароль"
+          label={t("auth.password")}
           type="password"
           {...register("password")}
         />
@@ -82,11 +91,12 @@ export function LoginPage() {
             icon={<LogIn size={18} />}
             type="submit"
           >
-            Войти
+            {t("common.actions.login")}
           </Button>
         </div>
         <p className="form-helper">
-          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+          {t("auth.registerCtaPrefix")}{" "}
+          <Link to="/register">{t("auth.registerCtaLink")}</Link>
         </p>
       </form>
     </section>

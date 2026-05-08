@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, RefreshCw, Search, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
@@ -19,6 +20,7 @@ import { Toolbar } from "../../components/Toolbar";
 import { AssignmentModal } from "./AssignmentModal";
 
 type StatusFilter = BookingStatus | "all";
+type TFn = (key: string, options?: Record<string, unknown>) => string;
 
 const today = new Date().toISOString().slice(0, 10);
 const statusOptions: BookingStatus[] = [
@@ -31,17 +33,8 @@ const statusOptions: BookingStatus[] = [
   "no_show",
 ];
 
-const statusLabels: Record<BookingStatus, string> = {
-  cancelled: "Отменена",
-  completed: "Завершена",
-  confirmed: "Подтверждена",
-  draft: "Черновик",
-  in_progress: "В работе",
-  no_show: "Не приехал",
-  pending: "Ожидает",
-};
-
 export function ManagerBookingsPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
@@ -155,7 +148,7 @@ export function ManagerBookingsPage() {
               onClick={() => void bookingsQuery.refetch()}
               variant="secondary"
             >
-              Найти
+              {t("common.actions.refresh")}
             </Button>
             <Button
               icon={<RefreshCw size={18} />}
@@ -164,15 +157,15 @@ export function ManagerBookingsPage() {
                 void scheduleQuery.refetch();
               }}
             >
-              Обновить
+              {t("common.actions.refresh")}
             </Button>
           </>
         }
-        title="Заказы"
+        title={t("managerBookings.title")}
       >
         <SelectField
           disabled={stationsQuery.isLoading}
-          label="Станция"
+          label={t("common.fields.station")}
           onChange={(event) => setSelectedStationId(Number(event.target.value))}
           value={selectedStationId ?? ""}
         >
@@ -183,32 +176,32 @@ export function ManagerBookingsPage() {
           ))}
         </SelectField>
         <InputField
-          label="Дата"
+          label={t("common.fields.date")}
           onChange={(event) => setDate(event.target.value)}
           type="date"
           value={date}
         />
         <SelectField
-          label="Статус"
+          label={t("common.fields.status")}
           onChange={(event) => setStatus(event.target.value as StatusFilter)}
           value={status}
         >
-          <option value="all">Все</option>
+          <option value="all">{t("managerBookings.filters.any")}</option>
           {statusOptions.map((option) => (
             <option key={option} value={option}>
-              {statusLabels[option]}
+              {t(`bookingStatus.${option}` as const)}
             </option>
           ))}
         </SelectField>
         <SelectField
           disabled={scheduleQuery.isLoading}
-          label="Бокс"
+          label={t("common.fields.box")}
           onChange={(event) =>
             setBoxId(event.target.value ? Number(event.target.value) : null)
           }
           value={boxId ?? ""}
         >
-          <option value="">Все</option>
+          <option value="">{t("managerBookings.filters.any")}</option>
           {boxes.map((box) => (
             <option key={box.id} value={box.id}>
               {box.name}
@@ -217,13 +210,13 @@ export function ManagerBookingsPage() {
         </SelectField>
         <SelectField
           disabled={scheduleQuery.isLoading}
-          label="Мойщик"
+          label={t("common.fields.washer")}
           onChange={(event) =>
             setWasherId(event.target.value ? Number(event.target.value) : null)
           }
           value={washerId ?? ""}
         >
-          <option value="">Все</option>
+          <option value="">{t("managerBookings.filters.any")}</option>
           {washers.map((washer) => (
             <option key={washer.id} value={washer.id}>
               {washer.name}
@@ -232,13 +225,13 @@ export function ManagerBookingsPage() {
         </SelectField>
       </Toolbar>
       {bookingsQuery.isLoading ? (
-        <div className="panel state-panel">Загрузка заказов...</div>
+        <div className="panel state-panel">{t("managerBookings.loading")}</div>
       ) : null}
       {bookingsQuery.isError ? (
-        <div className="panel state-panel">Не удалось загрузить заказы.</div>
+        <div className="panel state-panel">{t("managerBookings.loadFailed")}</div>
       ) : null}
       {!bookingsQuery.isLoading && bookings.length === 0 ? (
-        <div className="panel state-panel">Заказов по фильтрам нет.</div>
+        <div className="panel state-panel">{t("booking.filterEmpty")}</div>
       ) : null}
       {bookings.length ? (
         <BookingsTable
@@ -290,33 +283,35 @@ function BookingsTable({
   statusPending: boolean;
   washTypes: WashType[];
 }) {
+  const { t } = useTranslation();
   return (
     <div className="table-wrap">
       <table className="data-table">
         <thead>
           <tr>
-            <th>Клиент</th>
-            <th>Время</th>
-            <th>Услуга</th>
-            <th>Бокс</th>
-            <th>Мойщик</th>
-            <th>Статус</th>
-            <th>Сумма</th>
-            <th>Действия</th>
+            <th>{t("common.fields.client")}</th>
+            <th>{t("common.fields.time")}</th>
+            <th>{t("common.fields.service")}</th>
+            <th>{t("common.fields.box")}</th>
+            <th>{t("common.fields.washer")}</th>
+            <th>{t("common.fields.status")}</th>
+            <th>{t("common.fields.cost")}</th>
+            <th>{t("common.fields.actions")}</th>
           </tr>
         </thead>
         <tbody>
           {bookings.map((booking) => (
             <tr key={booking.id}>
-              <td>Клиент #{booking.customer}</td>
+              <td>{t("managerBookings.client", { id: booking.customer })}</td>
               <td>{formatTimeRange(booking.starts_at, booking.ends_at)}</td>
-              <td>{washTypeName(washTypes, booking.wash_type)}</td>
-              <td>{boxName(boxes, booking.wash_box)}</td>
-              <td>{washerNames(booking)}</td>
+              <td>{washTypeName(washTypes, booking.wash_type, t)}</td>
+              <td>{boxName(boxes, booking.wash_box, t)}</td>
+              <td>{washerNames(booking, t)}</td>
               <td>
                 <div className="status-control">
                   <StatusBadge status={booking.status} />
                   <select
+                    aria-label={t("common.fields.status")}
                     className="inline-select"
                     disabled={statusPending}
                     onChange={(event) =>
@@ -326,7 +321,7 @@ function BookingsTable({
                   >
                     {statusOptions.map((option) => (
                       <option key={option} value={option}>
-                        {statusLabels[option]}
+                        {t(`bookingStatus.${option}` as const)}
                       </option>
                     ))}
                   </select>
@@ -340,14 +335,14 @@ function BookingsTable({
                     to={`/manager/bookings/${booking.id}`}
                   >
                     <Eye size={18} />
-                    <span>Детали</span>
+                    <span>{t("booking.details")}</span>
                   </Link>
                   <Button
                     icon={<UserCheck size={18} />}
                     onClick={() => onAssign(booking)}
                     variant="secondary"
                   >
-                    Назначить
+                    {t("managerBookings.assign")}
                   </Button>
                 </div>
               </td>
@@ -384,29 +379,36 @@ function stationLabel(station: Station) {
   return station.address ? `${station.name}, ${station.address}` : station.name;
 }
 
-function washTypeName(washTypes: WashType[], washTypeId: number) {
+function washTypeName(washTypes: WashType[], washTypeId: number, t: TFn) {
   return (
     washTypes.find((washType) => washType.id === washTypeId)?.name ??
-    `Услуга ${washTypeId}`
+    `${t("common.fields.service")} #${washTypeId}`
   );
 }
 
-function boxName(boxes: Array<{ id: number; name: string }>, boxId: number | null) {
+function boxName(
+  boxes: Array<{ id: number; name: string }>,
+  boxId: number | null,
+  t: TFn,
+) {
   if (!boxId) {
-    return "Не назначен";
+    return t("managerBookings.boxUnassigned");
   }
 
-  return boxes.find((box) => box.id === boxId)?.name ?? `Бокс ${boxId}`;
+  return (
+    boxes.find((box) => box.id === boxId)?.name ??
+    t("managerBookings.boxFallback", { id: boxId })
+  );
 }
 
-function washerNames(booking: Booking) {
+function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
-    : "Не назначен";
+    : t("managerBookings.washersUnassigned");
 }
 
 function formatTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
+  return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));

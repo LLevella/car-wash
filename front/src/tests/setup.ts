@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 
+import i18n from "../i18n";
+
 let authState: "authenticated" | "anonymous" = "authenticated";
 
 export function setTestAuthState(state: "authenticated" | "anonymous") {
@@ -9,6 +11,10 @@ export function setTestAuthState(state: "authenticated" | "anonymous") {
 
 beforeEach(() => {
   authState = "authenticated";
+  // Pin tests to the Russian locale so the existing string assertions
+  // continue to match. Tests that need English/Turkish call
+  // i18n.changeLanguage explicitly.
+  void i18n.changeLanguage("ru");
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

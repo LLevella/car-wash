@@ -1,5 +1,7 @@
 import { UserPlus } from "lucide-react";
+import { useMemo } from "react";
 import { useForm, type UseFormSetError } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,20 +12,13 @@ import { InputField } from "../../components/Field";
 import { Toolbar } from "../../components/Toolbar";
 import { defaultPathFor, useCurrentUser, useRegisterMutation } from "./useAuth";
 
-const schema = z
-  .object({
-    username: z.string().min(3, "Минимум 3 символа"),
-    password: z.string().min(8, "Минимум 8 символов"),
-    password_confirm: z.string().min(1, "Повторите пароль"),
-    name: z.string().min(1, "Введите имя"),
-    phone_number: z.string().min(1, "Введите телефон"),
-  })
-  .refine((values) => values.password === values.password_confirm, {
-    message: "Пароли не совпадают",
-    path: ["password_confirm"],
-  });
-
-type RegisterForm = z.infer<typeof schema>;
+type RegisterForm = {
+  username: string;
+  password: string;
+  password_confirm: string;
+  name: string;
+  phone_number: string;
+};
 
 const REGISTER_FIELDS = [
   "username",
@@ -34,9 +29,26 @@ const REGISTER_FIELDS = [
 ] as const;
 
 export function RegisterPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const registerMutation = useRegisterMutation();
   const { data: session, isLoading } = useCurrentUser();
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          username: z.string().min(3, t("auth.errors.usernameMin")),
+          password: z.string().min(8, t("auth.errors.passwordMin")),
+          password_confirm: z.string().min(1, t("auth.errors.confirmRequired")),
+          name: z.string().min(1, t("auth.errors.nameRequired")),
+          phone_number: z.string().min(1, t("auth.errors.phoneRequired")),
+        })
+        .refine((values) => values.password === values.password_confirm, {
+          message: t("auth.errors.confirmMismatch"),
+          path: ["password_confirm"],
+        }),
+    [t],
+  );
   const {
     formState: { errors },
     handleSubmit,
@@ -67,7 +79,7 @@ export function RegisterPage() {
   if (isLoading) {
     return (
       <section className="page page--narrow">
-        <div className="panel state-panel">Загрузка...</div>
+        <div className="panel state-panel">{t("common.loading")}</div>
       </section>
     );
   }
@@ -78,33 +90,37 @@ export function RegisterPage() {
 
   return (
     <section className="page page--narrow">
-      <Toolbar title="Регистрация" />
+      <Toolbar title={t("auth.registerTitle")} />
       <form className="panel form-grid" onSubmit={handleSubmit(onSubmit)}>
         <InputField
           autoComplete="username"
           error={errors.username?.message}
-          label="Логин"
+          label={t("auth.username")}
           {...register("username")}
         />
-        <InputField error={errors.name?.message} label="Имя" {...register("name")} />
+        <InputField
+          error={errors.name?.message}
+          label={t("common.fields.name")}
+          {...register("name")}
+        />
         <InputField
           autoComplete="tel"
           error={errors.phone_number?.message}
-          label="Телефон"
+          label={t("common.fields.phone")}
           type="tel"
           {...register("phone_number")}
         />
         <InputField
           autoComplete="new-password"
           error={errors.password?.message}
-          label="Пароль"
+          label={t("auth.password")}
           type="password"
           {...register("password")}
         />
         <InputField
           autoComplete="new-password"
           error={errors.password_confirm?.message}
-          label="Повторите пароль"
+          label={t("auth.passwordConfirm")}
           type="password"
           {...register("password_confirm")}
         />
@@ -117,11 +133,11 @@ export function RegisterPage() {
             icon={<UserPlus size={18} />}
             type="submit"
           >
-            Зарегистрироваться
+            {t("auth.register")}
           </Button>
         </div>
         <p className="form-helper">
-          Уже есть аккаунт? <Link to="/login">Войти</Link>
+          {t("auth.loginCtaPrefix")} <Link to="/login">{t("auth.loginCtaLink")}</Link>
         </p>
       </form>
     </section>

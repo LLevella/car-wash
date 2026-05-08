@@ -203,6 +203,37 @@ a {
   text-decoration: none;
 }
 
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.language-switcher__label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.language-switcher select {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+  border-radius: 6px;
+  padding: 4px 10px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sidebar__language {
+  margin-top: auto;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border, rgba(0, 0, 0, 0.08));
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
