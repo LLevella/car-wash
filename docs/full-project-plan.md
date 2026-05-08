@@ -10,9 +10,9 @@ frontend-план этапов 1-8 с сохранением всех детал
 Текущий статус (на 2026-05-08):
 
 - Backend этапы 1-18 выполнены.
-- Frontend MVP этапы 1-9 выполнены (включая production build/deploy и
-  управление автомобилями клиента).
-- В работе/планируется: backend этапы 19-24, расширение frontend (F10-F14),
+- Frontend MVP этапы 1-10 выполнены (включая production build/deploy,
+  управление автомобилями клиента и обновлённый manager schedule UI).
+- В работе/планируется: backend этапы 19-24, расширение frontend (F11-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -580,7 +580,7 @@ Frontend использует следующие endpoints (актуально �
 | `/api/car-wash/bookings/{id}/status/`          | PATCH                 | используется только manager            |
 | `/api/manager/schedule/`                       | GET                   | `ManagerSchedulePage`                  |
 | `/api/manager/bookings/`                       | GET                   | `ManagerBookingsPage`                  |
-| `/api/manager/bookings/{id}/`                  | GET                   | available for manager details (B18)    |
+| `/api/manager/bookings/{id}/`                  | GET                   | `ManagerBookingDetailsPage`            |
 | `/api/manager/bookings/{id}/assign/`           | PATCH                 | `AssignmentModal`                      |
 | `/api/manager/bookings/{id}/status/`           | PATCH                 | manager actions                        |
 | `/api/manager/shifts/`                         | GET, POST             | `ManagerShiftsPage`                    |
@@ -1596,9 +1596,9 @@ Backend prerequisites: B15 (выполнен) — backend отдаёт неск�
 отдельный тех-долг (см. раздел 14.2), который делается после полного
 перехода UI на `Car.customer`.
 
-### 10.4 Frontend, в плане
-
 #### F10. Manager schedule после B18
+
+Статус: выполнен.
 
 Задачи:
 
@@ -1606,10 +1606,33 @@ Backend prerequisites: B15 (выполнен) — backend отдаёт неск�
 - Подсветить загрузку боксов и мойщиков на агрегатах.
 - Реализовать partial refresh без перезапроса всего дня.
 
+Реализовано:
+
+- В `ManagerSchedulePage` сетка времени строится через `deriveScheduleHours`
+  из `schedule.shifts` и `schedule.bookings`, с fallback на текущий
+  диапазон 9-18, если данных нет; это убирает захардкоженный список часов
+  в пользу динамического диапазона, основанного на серверном payload.
+- Под именем каждого бокса и мойщика отображается агрегат загрузки за день
+  через helper `formatLoadMinutes` (например, «1 ч 30 мин»). Агрегаты
+  берутся из `schedule.summary.busy_box_minutes` и
+  `schedule.summary.busy_washer_minutes`.
+- `ManagerBookingDetailsPage` переключён на новый endpoint
+  `GET /api/manager/bookings/{id}/` через `getManagerBooking`. Раньше
+  страница тянула полный список заказов и фильтровала на клиенте; теперь
+  загружает только нужный заказ. Mutation `onSuccess` инвалидирует
+  отдельный query-key `["manager", "booking", id]` для точечного refresh.
+- Setup-фикстуры тестов покрывают новый endpoint деталей и расширенный
+  schedule payload с `summary`/`day_starts_at`/`day_ends_at`/`step_minutes`.
+
 Критерии готовности:
 
-- расписание загружается за один запрос;
-- обновление одной записи не вызывает полный refetch.
+- расписание загружается одним запросом, agregates строятся без
+  доп.вычислений в UI;
+- обновление статуса/назначения одной записи не вызывает полный refetch
+  списка заказов: затрагивается только query деталей и schedule;
+- сетка времени динамически адаптируется под смены и записи дня.
+
+### 10.4 Frontend, в плане
 
 #### F11. Генерация типов из OpenAPI (после B19)
 
@@ -1988,19 +2011,17 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B18 и F1-F9 выполнены):
+С учётом текущего статуса (B1-B18 и F1-F10 выполнены):
 
-1. **F10** — обновление frontend под новый schedule API (B18 выполнен,
-   F10 разблокирован).
-2. **B19** — OpenAPI и подготовка к генерации типов.
-3. **F11** — генерация типов из OpenAPI (зависит от B19).
-4. **B20** — audit log управленческих действий.
-5. **F12** — UI просмотра audit log (зависит от B20).
-6. **B21**, **B22** — notifications-ready и payment-ready слои.
-7. **F13** — статус оплаты в UI (зависит от B22).
-8. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
+1. **B19** — OpenAPI и подготовка к генерации типов.
+2. **F11** — генерация типов из OpenAPI (зависит от B19).
+3. **B20** — audit log управленческих действий.
+4. **F12** — UI просмотра audit log (зависит от B20).
+5. **B21**, **B22** — notifications-ready и payment-ready слои.
+6. **F13** — статус оплаты в UI (зависит от B22).
+7. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
    observability.
-9. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+8. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,

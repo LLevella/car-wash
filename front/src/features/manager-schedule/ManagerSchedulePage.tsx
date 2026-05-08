@@ -26,7 +26,7 @@ import { Toolbar } from "../../components/Toolbar";
 import { AssignmentModal } from "../manager-bookings/AssignmentModal";
 
 const today = new Date().toISOString().slice(0, 10);
-const scheduleHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+const defaultScheduleHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const statusOptions: BookingStatus[] = [
   "draft",
   "pending",
@@ -189,6 +189,7 @@ export function ManagerSchedulePage() {
           />
           <ScheduleResources
             blocks={(schedule as ManagerScheduleDay).resource_blocks}
+            schedule={schedule as ManagerScheduleDay}
             shifts={(schedule as ManagerScheduleDay).shifts}
           />
         </>
@@ -226,9 +227,20 @@ function ScheduleGrid({
   statusPending: boolean;
   washTypes: WashType[];
 }) {
+  const scheduleHours = useMemo(() => deriveScheduleHours(schedule), [schedule]);
   const bookingsByBoxAndHour = useMemo(
     () => groupBookingsByBoxAndHour(schedule.bookings),
     [schedule.bookings],
+  );
+  const boxLoadById = useMemo(
+    () =>
+      new Map(
+        (schedule.summary?.busy_box_minutes ?? []).map((entry) => [
+          entry.wash_box,
+          entry.minutes,
+        ]),
+      ),
+    [schedule.summary?.busy_box_minutes],
   );
 
   return (
@@ -245,7 +257,10 @@ function ScheduleGrid({
         {schedule.boxes.map((box) => (
           <div className="schedule-grid__row" key={box.id} role="row">
             <div className="schedule-grid__box" role="rowheader">
-              {box.name}
+              <span>{box.name}</span>
+              <small className="schedule-grid__load">
+                {formatLoadMinutes(boxLoadById.get(box.id) ?? 0)}
+              </small>
             </div>
             {scheduleHours.map((hour) => {
               const cellBookings =
@@ -310,16 +325,32 @@ function ScheduleGrid({
 function ScheduleResources({
   blocks,
   shifts,
+  schedule,
 }: {
   blocks: ResourceBlock[];
   shifts: WasherShift[];
+  schedule: ManagerScheduleDay;
 }) {
+  const washerLoadById = useMemo(
+    () =>
+      new Map(
+        (schedule.summary?.busy_washer_minutes ?? []).map((entry) => [
+          entry.washer,
+          entry.minutes,
+        ]),
+      ),
+    [schedule.summary?.busy_washer_minutes],
+  );
+
   return (
     <section className="resource-strip" aria-label="Смены и блокировки">
       {shifts.map((shift) => (
         <article className="resource-strip__item" key={`shift-${shift.id}`}>
           <strong>{shift.washer_name}</strong>
           <span>{formatTimeRange(shift.starts_at, shift.ends_at)}</span>
+          <small className="resource-strip__load">
+            {formatLoadMinutes(washerLoadById.get(shift.washer) ?? 0)}
+          </small>
         </article>
       ))}
       {blocks.map((block) => (
@@ -405,4 +436,45 @@ function formatTime(value: string) {
 
 function formatTimeRange(startsAt: string, endsAt: string) {
   return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
+}
+
+function deriveScheduleHours(schedule: ManagerScheduleDay): number[] {
+  const candidates: number[] = [];
+
+  for (const shift of schedule.shifts) {
+    candidates.push(new Date(shift.starts_at).getHours());
+    candidates.push(Math.max(new Date(shift.ends_at).getHours(), 0));
+  }
+  for (const booking of schedule.bookings) {
+    candidates.push(new Date(booking.starts_at).getHours());
+    candidates.push(new Date(booking.ends_at).getHours());
+  }
+
+  if (!candidates.length) {
+    return defaultScheduleHours;
+  }
+
+  const min = Math.max(0, Math.min(...candidates));
+  const max = Math.min(23, Math.max(...candidates));
+  if (max < min) {
+    return defaultScheduleHours;
+  }
+
+  return Array.from({ length: max - min + 1 }, (_, index) => min + index);
+}
+
+function formatLoadMinutes(minutes: number): string {
+  if (!minutes) {
+    return "0 мин";
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (!hours) {
+    return `${minutes} мин`;
+  }
+  if (!remainder) {
+    return `${hours} ч`;
+  }
+  return `${hours} ч ${remainder} мин`;
 }

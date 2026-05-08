@@ -189,6 +189,16 @@ beforeEach(() => {
         return jsonResponse(bookingFixture());
       }
 
+      const managerBookingDetailMatch = url.match(
+        /\/api\/manager\/bookings\/(\d+)\/$/,
+      );
+      if (managerBookingDetailMatch && method === "GET") {
+        return jsonResponse({
+          ...bookingFixture(),
+          id: Number(managerBookingDetailMatch[1]),
+        });
+      }
+
       if (url.includes("/api/manager/bookings/")) {
         return jsonResponse([bookingFixture()]);
       }

@@ -7,7 +7,7 @@ import { ensureCsrfCookie } from "../../api/auth";
 import { getStations, getWashTypes } from "../../api/dictionaries";
 import {
   assignBooking,
-  getManagerBookings,
+  getManagerBooking,
   getManagerSchedule,
   updateManagerBookingStatus,
 } from "../../api/manager";
@@ -50,17 +50,13 @@ export function ManagerBookingDetailsPage() {
     queryKey: ["dictionaries", "wash-types"],
     queryFn: getWashTypes,
   });
-  const bookingsQuery = useQuery({
-    queryKey: ["manager", "bookings", "details"],
-    queryFn: () => getManagerBookings(),
+  const numericBookingId = bookingId ? Number(bookingId) : null;
+  const bookingQuery = useQuery({
+    queryKey: ["manager", "booking", numericBookingId],
+    queryFn: () => getManagerBooking(numericBookingId as number),
+    enabled: typeof numericBookingId === "number" && !Number.isNaN(numericBookingId),
   });
-  const booking = useMemo(
-    () =>
-      (bookingsQuery.data ?? []).find(
-        (candidate) => String(candidate.id) === bookingId,
-      ),
-    [bookingId, bookingsQuery.data],
-  );
+  const booking = bookingQuery.data;
   const scheduleDate = booking?.starts_at.slice(0, 10);
   const scheduleQuery = useQuery({
     queryKey: ["manager", "schedule", booking?.wash_station, scheduleDate],
@@ -82,6 +78,7 @@ export function ManagerBookingDetailsPage() {
       return updateManagerBookingStatus(booking.id, nextStatus);
     },
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["manager", "booking"] });
       void queryClient.invalidateQueries({ queryKey: ["manager", "bookings"] });
       void queryClient.invalidateQueries({ queryKey: ["manager", "schedule"] });
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
@@ -101,6 +98,7 @@ export function ManagerBookingDetailsPage() {
     },
     onSuccess: () => {
       setAssigningBooking(null);
+      void queryClient.invalidateQueries({ queryKey: ["manager", "booking"] });
       void queryClient.invalidateQueries({ queryKey: ["manager", "bookings"] });
       void queryClient.invalidateQueries({ queryKey: ["manager", "schedule"] });
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
@@ -140,13 +138,13 @@ export function ManagerBookingDetailsPage() {
         }
         title={booking ? `Заказ #${booking.id}` : "Детали заказа"}
       />
-      {bookingsQuery.isLoading ? (
+      {bookingQuery.isLoading ? (
         <div className="panel state-panel">Загрузка заказа...</div>
       ) : null}
-      {bookingsQuery.isError ? (
+      {bookingQuery.isError ? (
         <div className="panel state-panel">Не удалось загрузить заказ.</div>
       ) : null}
-      {!bookingsQuery.isLoading && !bookingsQuery.isError && !booking ? (
+      {!bookingQuery.isLoading && !bookingQuery.isError && !booking ? (
         <div className="panel state-panel">Заказ не найден.</div>
       ) : null}
       {booking ? (
