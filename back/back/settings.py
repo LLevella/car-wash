@@ -68,6 +68,9 @@ INSTALLED_APPS = [
     'main',
 ]
 
+SERVE_SPA = env_bool("DJANGO_SERVE_SPA", False)
+SPA_DIST_DIR = BASE_DIR / "spa"
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -78,6 +81,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if SERVE_SPA:
+    # WhiteNoise serves the prebuilt frontend assets straight from the
+    # backend process so the demo image can ship a single container.
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
 ROOT_URLCONF = 'back.urls'
 
@@ -144,6 +152,14 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+if SERVE_SPA and SPA_DIST_DIR.exists():
+    # The frontend production build emits assets under dist/assets and the
+    # entry html into dist/index.html. Mount the assets folder on the same
+    # /static/ prefix that vite is configured with so WhiteNoise picks it
+    # up via collectstatic.
+    STATICFILES_DIRS = [SPA_DIST_DIR]
+    WHITENOISE_KEEP_ONLY_HASHED_FILES = False
 
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)

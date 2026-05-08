@@ -13,10 +13,12 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 
 from back.health import health_check, readiness_check
+from back.spa import serve_spa
 
 urlpatterns = [
     path('health/', health_check, name='health-check'),
@@ -24,3 +26,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('back.api_urls')),
 ]
+
+if settings.SERVE_SPA:
+    # Catch-all that serves the SPA index for any non-API/admin/static
+    # URL. The earlier path() entries above shadow /api/, /admin/, and
+    # the health endpoints; everything else (including /, /login, /book,
+    # client-side router paths) renders the React shell.
+    urlpatterns += [re_path(r'^.*$', serve_spa, name='spa-fallback')]

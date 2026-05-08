@@ -77,7 +77,18 @@ car-wash/
 
 Python 3.9-3.11 is recommended for this Django 4.1.x project.
 
-Fast full-system startup with Docker:
+Single-container demo (frontend + backend + seeded data, no extra
+services):
+
+```bash
+docker compose -f docker-compose.demo.yml up --build
+# open http://127.0.0.1:8000/
+```
+
+See [docs/demo.md](docs/demo.md) for what's seeded.
+
+Fast dev-style full-system startup with Docker (frontend on Vite dev
+server, backend on Django runserver, two containers):
 
 ```bash
 docker compose up --build
