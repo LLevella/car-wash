@@ -8,10 +8,10 @@ Car Wash is a Django + Django REST Framework backend for customer car wash
 booking and manager-side workday planning: bay loading, washer shifts, order
 assignments, rescheduling, cancellations, and resource blocks.
 
-The full target architecture and development plan are documented in
-[docs/implementation-plan.md](docs/implementation-plan.md). The frontend plan
-is documented in
-[docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
+The full target architecture and development plan, including backend,
+frontend, infrastructure, testing, and the production roadmap, are
+consolidated in
+[docs/full-project-plan.md](docs/full-project-plan.md).
 
 ### Features
 
@@ -60,8 +60,7 @@ car-wash/
 │   ├── manage.py
 │   └── db.sqlite3
 ├── docs/
-│   ├── frontend-implementation-plan.md
-│   └── implementation-plan.md
+│   └── full-project-plan.md
 ├── front/                 # Vite + React + TypeScript frontend
 │   ├── src/
 │   │   ├── api/
@@ -395,15 +394,14 @@ Deployment secrets:
 
 ### Development Status
 
-Stages 1-13 are complete: project setup, data model, pricing, availability,
-booking, the basic manager workspace, role-based access control, tests,
-demo data, CI/CD, production-ready runtime configuration, model cleanup, and
-SPA auth API, and frontend dictionary API. See
-[docs/implementation-plan.md](docs/implementation-plan.md) for details and
-acceptance criteria.
-Frontend MVP stages 1-8 are implemented through the production build/deploy
-stage. See
-[docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
+Backend stages 1-16 and frontend MVP stages 1-8 are complete: project
+setup, data model, pricing, availability, booking, manager workspace,
+role-based access control, tests, demo data, CI/CD, production-ready
+runtime configuration, model cleanup, SPA auth API, frontend dictionary
+API, unified API contract, multiple customer cars, and per-station manager
+access; frontend reaches production build/deploy. See
+[docs/full-project-plan.md](docs/full-project-plan.md) for details,
+acceptance criteria, and the upcoming roadmap (B17-B24, F9-F14).
 
 ## Русский
 
@@ -411,10 +409,9 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 автомойку и планирования рабочего дня руководителем: загрузка боксов, смены
 мойщиков, назначения на заказы, переносы, отмены и блокировки ресурсов.
 
-Полная целевая архитектура и план разработки описаны в
-[docs/implementation-plan.md](docs/implementation-plan.md). План frontend
-описан в
-[docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
+Полная целевая архитектура и план разработки backend, frontend,
+инфраструктуры, тестирования и production-roadmap собраны в
+[docs/full-project-plan.md](docs/full-project-plan.md).
 
 ### Возможности
 
@@ -461,8 +458,7 @@ car-wash/
 │   ├── manage.py
 │   └── db.sqlite3
 ├── docs/
-│   ├── frontend-implementation-plan.md
-│   └── implementation-plan.md
+│   └── full-project-plan.md
 ├── front/                 # frontend на Vite + React + TypeScript
 │   ├── src/
 │   │   ├── api/
@@ -798,11 +794,11 @@ Secrets для деплоя:
 
 ### Статус разработки
 
-Этапы 1-13 выполнены: подготовка проекта, модель данных, расчет цены,
-доступность, бронирование, базовый кабинет руководителя, ролевой доступ,
-тесты, демо-данные, CI/CD, production-ready runtime configuration, cleanup
-моделей, SPA auth API и frontend dictionary API. Подробности и критерии
-готовности - в
-[docs/implementation-plan.md](docs/implementation-plan.md).
-Frontend MVP этапы 1-8 выполнены до production build/deploy включительно.
-См. [docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
+Backend этапы 1-16 и frontend MVP этапы 1-8 выполнены: подготовка
+проекта, модель данных, расчет цены, доступность, бронирование, кабинет
+руководителя, ролевой доступ, тесты, демо-данные, CI/CD, production-ready
+runtime configuration, cleanup моделей, SPA auth API, frontend dictionary
+API, единый API contract, несколько автомобилей у клиента и доступ
+менеджеров к станциям; frontend доведен до production build/deploy.
+Подробности, критерии готовности и дальнейший roadmap (B17-B24, F9-F14) —
+в [docs/full-project-plan.md](docs/full-project-plan.md).
