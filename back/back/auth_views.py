@@ -1,4 +1,10 @@
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import Group, User
+from django.contrib.auth.password_validation import (
+    ValidationError as PasswordValidationError,
+    validate_password,
+)
+from django.db import IntegrityError, transaction
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -17,6 +23,7 @@ from car_wash.permissions import (
     is_customer_user,
     is_manager_user,
 )
+from customer.models import Customer
 
 
 class CurrentUserView(APIView):
@@ -60,6 +67,83 @@ class LoginView(APIView):
 
         login(request, user)
         return success_response(current_user_payload(user))
+
+
+@method_decorator(csrf_protect, name="dispatch")
+class RegisterView(APIView):
+    """Public customer self-registration. Creates a Django user, places it
+    in the ``customer`` group, attaches a Customer profile (without a car
+    yet — the user adds one from /my/cars right after), and logs the user
+    in so the SPA can keep navigating without a second round-trip."""
+
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        username = (request.data.get("username") or "").strip()
+        password = request.data.get("password") or ""
+        password_confirm = request.data.get("password_confirm") or ""
+        name = (request.data.get("name") or "").strip()
+        phone_number = (request.data.get("phone_number") or "").strip()
+
+        field_errors = {}
+        if not username:
+            field_errors["username"] = ["Введите username."]
+        elif len(username) < 3:
+            field_errors["username"] = ["Минимум 3 символа."]
+        elif User.objects.filter(username__iexact=username).exists():
+            field_errors["username"] = ["Этот username уже занят."]
+
+        if not password:
+            field_errors["password"] = ["Введите password."]
+        elif password != password_confirm:
+            field_errors["password_confirm"] = ["Пароли не совпадают."]
+        else:
+            try:
+                validate_password(password)
+            except PasswordValidationError as exc:
+                field_errors["password"] = list(exc.messages)
+
+        if not name:
+            field_errors["name"] = ["Введите имя."]
+        if not phone_number:
+            field_errors["phone_number"] = ["Введите телефон."]
+        elif Customer.objects.filter(phoneNumber=phone_number).exists():
+            field_errors["phone_number"] = ["Этот телефон уже зарегистрирован."]
+
+        if field_errors:
+            return error_response(
+                "Проверьте поля формы.",
+                field_errors=field_errors,
+                code="validation_error",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            with transaction.atomic():
+                user = User.objects.create_user(
+                    username=username,
+                    password=password,
+                )
+                customer_group, _ = Group.objects.get_or_create(name=CUSTOMER_GROUP)
+                user.groups.add(customer_group)
+                Customer.objects.create(
+                    user=user,
+                    name=name,
+                    phoneNumber=phone_number,
+                )
+        except IntegrityError:
+            return error_response(
+                "Этот username уже занят.",
+                field_errors={"username": ["Этот username уже занят."]},
+                code="validation_error",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        login(request, user)
+        return success_response(
+            current_user_payload(user),
+            status_code=status.HTTP_201_CREATED,
+        )
 
 
 @method_decorator(csrf_protect, name="dispatch")

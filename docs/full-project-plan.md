@@ -363,6 +363,7 @@ JSON:API-компоненты DRF подключены, но не использ
 GET    /api/auth/csrf/
 POST   /api/auth/login/
 POST   /api/auth/logout/
+POST   /api/auth/register/
 GET    /api/auth/me/
 
 GET    /api/cars/brands/
@@ -463,6 +464,8 @@ GET    /health/ready/
 Публичные:
 
 - `/login` — вход в систему.
+- `/register` — регистрация нового клиента; сразу логинит и редиректит
+  в `/book`.
 
 Клиент:
 
@@ -2207,15 +2210,15 @@ session cookies.
 queryset-ссылок. Сделать в рамках первого же этапа, который касается
 `cars/`. Не выделено отдельным B-этапом, чтобы не блокировать roadmap.
 
-### 14.2 Обязательное legacy-поле `Customer.car`
+### 14.2 Legacy-поле `Customer.car`
 
-`customer.Customer.car` остаётся `ForeignKey(on_delete=PROTECT)` без
-`null=True`. Это вынуждает заполнять поле при создании клиента и мешает
-полному переходу на связь `Car.customer`.
-
-Решение: после полного перехода frontend и backend на `Car.customer`
-сделать поле nullable отдельной миграцией, затем удалить совсем при
-следующей версии. Связано с этапом F9 (UI управления автомобилями).
+`customer.Customer.car` стало nullable в миграции
+`0006_alter_customer_car` (потребовалось для регистрации новых клиентов
+без машины). Поле остаётся в схеме на переходный период, чтобы не ломать
+старые миграции и admin-формы. Полное удаление будет, когда мы пройдём
+по всем местам, где `Customer.car_id` ещё используется напрямую (admin,
+demo-seed `car`-default), и переключим их на queryset через
+`Car.customer`.
 
 ### 14.3 Legacy-модели в `personal/` и `main/`
 

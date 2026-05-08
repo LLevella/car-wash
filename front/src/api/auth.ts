@@ -12,6 +12,21 @@ export function login(username: string, password: string) {
   });
 }
 
+export type RegisterPayload = {
+  username: string;
+  password: string;
+  password_confirm: string;
+  name: string;
+  phone_number: string;
+};
+
+export function registerCustomer(payload: RegisterPayload) {
+  return apiRequest<CurrentUser>("/api/auth/register/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function logout() {
   return apiRequest<CurrentUser>("/api/auth/logout/", {
     method: "POST",

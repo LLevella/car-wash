@@ -123,7 +123,7 @@ def customer_payload(customer):
         "name": customer.name,
         "phone_number": customer.phoneNumber,
         "user_id": customer.user_id,
-        "car": car_payload(primary_car),
+        "car": car_payload(primary_car) if primary_car else None,
     }
 
 

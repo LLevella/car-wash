@@ -434,6 +434,89 @@ class AuthApiTests(TestCase):
         me_response = self.client.get(reverse("api:auth:me"))
         self.assertFalse(me_response.json()["data"]["is_authenticated"])
 
+    def test_register_creates_customer_and_logs_in(self):
+        response = self.client.post(
+            reverse("api:auth:register"),
+            {
+                "username": "newbie",
+                "password": "supersecret123",
+                "password_confirm": "supersecret123",
+                "name": "Новый Клиент",
+                "phone_number": "+79990001111",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()["data"]
+        self.assertTrue(payload["is_authenticated"])
+        self.assertEqual(payload["user"]["username"], "newbie")
+        self.assertIn(CUSTOMER_GROUP, payload["roles"])
+        self.assertIsNotNone(payload["customer_id"])
+
+        # The session should be live, so /api/auth/me/ now returns the same
+        # user without an extra login round-trip.
+        me_response = self.client.get(reverse("api:auth:me"))
+        self.assertTrue(me_response.json()["data"]["is_authenticated"])
+
+        new_user = User.objects.get(username="newbie")
+        new_customer = Customer.objects.get(user=new_user)
+        self.assertEqual(new_customer.name, "Новый Клиент")
+        self.assertEqual(new_customer.phoneNumber, "+79990001111")
+        self.assertIsNone(new_customer.car_id)
+
+    def test_register_rejects_duplicate_username(self):
+        response = self.client.post(
+            reverse("api:auth:register"),
+            {
+                "username": "anna",
+                "password": "supersecret123",
+                "password_confirm": "supersecret123",
+                "name": "Anna 2",
+                "phone_number": "+79990002222",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertIn("username", body["field_errors"])
+        self.assertEqual(body["code"], "validation_error")
+
+    def test_register_rejects_mismatched_passwords(self):
+        response = self.client.post(
+            reverse("api:auth:register"),
+            {
+                "username": "newuser",
+                "password": "supersecret123",
+                "password_confirm": "typoooo",
+                "name": "Тест",
+                "phone_number": "+79990003333",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("password_confirm", response.json()["field_errors"])
+
+    def test_register_rejects_short_username_and_missing_fields(self):
+        response = self.client.post(
+            reverse("api:auth:register"),
+            {
+                "username": "ab",
+                "password": "",
+                "password_confirm": "",
+                "name": "",
+                "phone_number": "",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        errors = response.json()["field_errors"]
+        for field in ("username", "password", "name", "phone_number"):
+            self.assertIn(field, errors)
+
 
 class DictionaryApiTests(TestCase):
     def setUp(self):

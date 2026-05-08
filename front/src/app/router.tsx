@@ -4,6 +4,7 @@ import { App } from "./App";
 import { HomeRedirect } from "../features/auth/HomeRedirect";
 import { LoginPage } from "../features/auth/LoginPage";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
+import { RegisterPage } from "../features/auth/RegisterPage";
 import { BookingPage } from "../features/booking/BookingPage";
 import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerBookingDetailsPage";
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <HomeRedirect /> },
       { path: "/login", element: <LoginPage /> },
+      { path: "/register", element: <RegisterPage /> },
       {
         path: "/book",
         element: (

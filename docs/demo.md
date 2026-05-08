@@ -74,6 +74,14 @@ populated, and the reports page shows real numbers immediately.
 The login form pre-fills `demo_manager`; switch the username to log in
 as someone else.
 
+### Self-registration
+
+The login page also has a "Зарегистрироваться" link that goes to
+`/register`. New customers fill in username, password (twice for
+confirmation), name, and phone, and are logged in immediately on
+success — no admin intervention required. The new user starts without
+a car; the booking flow shows a CTA to add one via `/my/cars`.
+
 ## Endpoints exposed
 
 | URL                       | Description                              |

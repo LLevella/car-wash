@@ -1,7 +1,14 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 
+let authState: "authenticated" | "anonymous" = "authenticated";
+
+export function setTestAuthState(state: "authenticated" | "anonymous") {
+  authState = state;
+}
+
 beforeEach(() => {
+  authState = "authenticated";
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -9,6 +16,14 @@ beforeEach(() => {
       const method = init?.method?.toUpperCase() ?? "GET";
 
       if (url.includes("/api/auth/me/")) {
+        if (authState === "anonymous") {
+          return jsonResponse({
+            is_authenticated: false,
+            user: null,
+            roles: [],
+            customer_id: null,
+          });
+        }
         return jsonResponse({
           is_authenticated: true,
           user: {
@@ -27,6 +42,27 @@ beforeEach(() => {
 
       if (url.includes("/api/auth/csrf/")) {
         return jsonResponse({ csrf_token: "test-csrf" });
+      }
+
+      if (url.includes("/api/auth/register/") && method === "POST") {
+        const body = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse(
+          {
+            is_authenticated: true,
+            user: {
+              id: 99,
+              username: body.username ?? "newbie",
+              email: "",
+              first_name: "",
+              last_name: "",
+              is_staff: false,
+              is_superuser: false,
+            },
+            roles: ["customer"],
+            customer_id: 99,
+          },
+          201,
+        );
       }
 
       if (url.includes("/api/personal/stations/")) {

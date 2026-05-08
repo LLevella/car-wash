@@ -1,6 +1,6 @@
 import { LogIn } from "lucide-react";
 import { useForm, type UseFormSetError } from "react-hook-form";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -85,6 +85,9 @@ export function LoginPage() {
             Войти
           </Button>
         </div>
+        <p className="form-helper">
+          Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+        </p>
       </form>
     </section>
   );

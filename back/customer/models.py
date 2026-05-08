@@ -40,8 +40,10 @@ class Customer(models.Model):
     car = models.ForeignKey(
         Car,
         verbose_name="Автомобиль",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name="legacy_customers",
+        blank=True,
+        null=True,
     )
 
     def __str__(self):

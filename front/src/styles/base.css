@@ -189,6 +189,20 @@ a {
   grid-column: 1 / -1;
 }
 
+.form-helper {
+  grid-column: 1 / -1;
+  text-align: center;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.form-helper a {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

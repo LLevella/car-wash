@@ -68,6 +68,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/register/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Public customer self-registration. Creates a Django user, places it
+         *     in the ``customer`` group, attaches a Customer profile (without a car
+         *     yet — the user adds one from /my/cars right after), and logs the user
+         *     in so the SPA can keep navigating without a second round-trip.
+         */
+        post: operations["auth_register_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/car-wash/availability/": {
         parameters: {
             query?: never;
@@ -559,6 +581,47 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/vnd.api+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    auth_register_create: {
+        parameters: {
+            query?: {
+                format?: "json" | "vnd.api+json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/vnd.api+json": {
+                    [key: string]: unknown;
+                };
+                "application/json": {
+                    [key: string]: unknown;
+                };
+                "application/x-www-form-urlencoded": {
+                    [key: string]: unknown;
+                };
+                "multipart/form-data": {
+                    [key: string]: unknown;
+                };
+            };
+        };
         responses: {
             200: {
                 headers: {

@@ -11,9 +11,12 @@ import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerB
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
 import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
 import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
+import { LoginPage } from "../features/auth/LoginPage";
+import { RegisterPage } from "../features/auth/RegisterPage";
 import { ManagerReportsPage } from "../features/manager-reports/ManagerReportsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 import { MyCarsPage } from "../features/my-cars/MyCarsPage";
+import { setTestAuthState } from "./setup";
 
 function renderRoute(path = "/book") {
   const router = createMemoryRouter(
@@ -22,6 +25,8 @@ function renderRoute(path = "/book") {
         element: <App />,
         path: "/",
         children: [
+          { path: "/login", element: <LoginPage /> },
+          { path: "/register", element: <RegisterPage /> },
           { path: "/book", element: <BookingPage /> },
           { path: "/my/bookings", element: <BookingPage view="bookings" /> },
           {
@@ -205,6 +210,34 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Номер")).toBeInTheDocument();
     expect(screen.getByLabelText("Тип")).toBeInTheDocument();
+  });
+
+  it("offers a registration link from the login page", async () => {
+    setTestAuthState("anonymous");
+    renderRoute("/login");
+
+    const registerLink = await screen.findByRole("link", {
+      name: "Зарегистрироваться",
+    });
+    expect(registerLink).toHaveAttribute("href", "/register");
+  });
+
+  it("validates the registration form", async () => {
+    setTestAuthState("anonymous");
+    const user = userEvent.setup();
+
+    renderRoute("/register");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Регистрация" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Зарегистрироваться" }));
+
+    expect(await screen.findByText("Минимум 3 символа")).toBeInTheDocument();
+    expect(screen.getByText("Минимум 8 символов")).toBeInTheDocument();
+    expect(screen.getByText("Введите имя")).toBeInTheDocument();
+    expect(screen.getByText("Введите телефон")).toBeInTheDocument();
   });
 
   it("renders manager reports aggregates", async () => {

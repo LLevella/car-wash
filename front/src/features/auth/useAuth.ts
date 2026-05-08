@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ensureCsrfCookie, getCurrentUser, login, logout } from "../../api/auth";
+import {
+  ensureCsrfCookie,
+  getCurrentUser,
+  login,
+  logout,
+  registerCustomer,
+  type RegisterPayload,
+} from "../../api/auth";
 import type { CurrentUser, UserRole } from "../../api/types";
 
 export const authQueryKey = ["auth", "me"] as const;
@@ -20,6 +27,20 @@ export function useLoginMutation() {
     mutationFn: async (payload: { username: string; password: string }) => {
       await ensureCsrfCookie();
       return login(payload.username, payload.password);
+    },
+    onSuccess: (session) => {
+      queryClient.setQueryData(authQueryKey, session);
+    },
+  });
+}
+
+export function useRegisterMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: RegisterPayload) => {
+      await ensureCsrfCookie();
+      return registerCustomer(payload);
     },
     onSuccess: (session) => {
       queryClient.setQueryData(authQueryKey, session);
