@@ -189,6 +189,28 @@ beforeEach(() => {
         return jsonResponse(bookingFixture());
       }
 
+      const auditMatch = url.match(/\/api\/manager\/bookings\/(\d+)\/audit\//);
+      if (auditMatch) {
+        return jsonResponse([
+          {
+            id: 1,
+            action: "booking_created",
+            actor: 1,
+            actor_username: "demo_manager",
+            context: { wash_box: 1 },
+            created_at: "2099-05-08T08:00:00",
+          },
+          {
+            id: 2,
+            action: "booking_status_changed",
+            actor: 1,
+            actor_username: "demo_manager",
+            context: { previous_status: "pending", status: "confirmed" },
+            created_at: "2099-05-08T08:30:00",
+          },
+        ]);
+      }
+
       const managerBookingDetailMatch = url.match(
         /\/api\/manager\/bookings\/(\d+)\/$/,
       );

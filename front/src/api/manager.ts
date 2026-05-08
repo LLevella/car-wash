@@ -1,5 +1,6 @@
 import { apiRequest } from "./client";
 import type {
+  AuditEvent,
   Booking,
   BookingStatus,
   ManagerScheduleDay,
@@ -58,6 +59,10 @@ export function getManagerBookings(filters: ManagerBookingFilters = {}) {
 
 export function getManagerBooking(id: number) {
   return apiRequest<Booking>(`/api/manager/bookings/${id}/`);
+}
+
+export function getManagerBookingAudit(id: number) {
+  return apiRequest<AuditEvent[]>(`/api/manager/bookings/${id}/audit/`);
 }
 
 export function assignBooking(

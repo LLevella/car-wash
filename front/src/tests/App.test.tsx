@@ -127,6 +127,19 @@ describe("App", () => {
     expect(screen.getByText("Alex Washer")).toBeInTheDocument();
   });
 
+  it("renders audit history for manager bookings", async () => {
+    renderRoute("/manager/bookings/1");
+
+    await screen.findByRole("heading", { level: 1, name: "Заказ #1" });
+    const history = await screen.findByRole("region", {
+      name: "История действий",
+    });
+    const list = await within(history).findByRole("list");
+    expect(within(list).getByText("Создание")).toBeInTheDocument();
+    expect(within(list).getByText("Смена статуса")).toBeInTheDocument();
+    expect(within(history).getByText("pending → confirmed")).toBeInTheDocument();
+  });
+
   it("opens assignment dialog from manager schedule", async () => {
     const user = userEvent.setup();
 

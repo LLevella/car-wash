@@ -133,6 +133,24 @@ export type ResourceBlock = {
   reason: string;
 };
 
+export type AuditAction =
+  | "booking_created"
+  | "booking_cancelled"
+  | "booking_rescheduled"
+  | "booking_status_changed"
+  | "booking_assigned"
+  | "shift_created"
+  | "resource_block_created";
+
+export type AuditEvent = {
+  id: number;
+  action: AuditAction;
+  actor: number | null;
+  actor_username: string | null;
+  context: Record<string, unknown>;
+  created_at: string;
+};
+
 export type ManagerScheduleSummary = {
   total_bookings: number;
   active_bookings: number;

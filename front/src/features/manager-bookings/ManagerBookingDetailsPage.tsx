@@ -8,10 +8,18 @@ import { getStations, getWashTypes } from "../../api/dictionaries";
 import {
   assignBooking,
   getManagerBooking,
+  getManagerBookingAudit,
   getManagerSchedule,
   updateManagerBookingStatus,
 } from "../../api/manager";
-import type { Booking, BookingStatus, Station, WashType } from "../../api/types";
+import type {
+  AuditAction,
+  AuditEvent,
+  Booking,
+  BookingStatus,
+  Station,
+  WashType,
+} from "../../api/types";
 import { Button } from "../../components/Button";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
@@ -228,6 +236,7 @@ export function ManagerBookingDetailsPage() {
           </div>
         </article>
       ) : null}
+      {booking ? <AuditHistoryPanel bookingId={booking.id} /> : null}
       <AssignmentModal
         booking={assigningBooking}
         boxes={boxes}
@@ -239,6 +248,137 @@ export function ManagerBookingDetailsPage() {
       />
     </section>
   );
+}
+
+const auditActionOptions: Array<{ value: AuditAction | "all"; label: string }> = [
+  { value: "all", label: "Все" },
+  { value: "booking_created", label: "Создание" },
+  { value: "booking_rescheduled", label: "Перенос" },
+  { value: "booking_cancelled", label: "Отмена" },
+  { value: "booking_status_changed", label: "Смена статуса" },
+  { value: "booking_assigned", label: "Назначение" },
+];
+
+const auditActionLabels: Record<AuditAction, string> = {
+  booking_created: "Создание",
+  booking_cancelled: "Отмена",
+  booking_rescheduled: "Перенос",
+  booking_status_changed: "Смена статуса",
+  booking_assigned: "Назначение",
+  shift_created: "Создание смены",
+  resource_block_created: "Блокировка",
+};
+
+function AuditHistoryPanel({ bookingId }: { bookingId: number }) {
+  const [actionFilter, setActionFilter] = useState<AuditAction | "all">("all");
+  const auditQuery = useQuery({
+    queryKey: ["manager", "booking-audit", bookingId],
+    queryFn: () => getManagerBookingAudit(bookingId),
+  });
+
+  const events = useMemo(() => {
+    const list = auditQuery.data ?? [];
+    if (actionFilter === "all") {
+      return list;
+    }
+
+    return list.filter((event) => event.action === actionFilter);
+  }, [auditQuery.data, actionFilter]);
+
+  return (
+    <section aria-label="История действий" className="panel audit-history">
+      <header className="audit-history__header">
+        <h3>История действий</h3>
+        <label className="audit-history__filter">
+          <span>Тип события</span>
+          <select
+            onChange={(event) =>
+              setActionFilter(event.target.value as AuditAction | "all")
+            }
+            value={actionFilter}
+          >
+            {auditActionOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </header>
+      {auditQuery.isLoading ? (
+        <div className="state-panel">Загрузка истории...</div>
+      ) : null}
+      {auditQuery.isError ? (
+        <div className="state-panel">Не удалось загрузить историю.</div>
+      ) : null}
+      {!auditQuery.isLoading && events.length === 0 ? (
+        <div className="state-panel">Событий по фильтру нет.</div>
+      ) : null}
+      {events.length ? (
+        <ol className="audit-history__list">
+          {events.map((event) => (
+            <li className="audit-history__item" key={event.id}>
+              <header>
+                <strong>{auditActionLabels[event.action] ?? event.action}</strong>
+                <time dateTime={event.created_at}>
+                  {formatDateTime(event.created_at)}
+                </time>
+              </header>
+              <small>
+                {event.actor_username
+                  ? `Автор: ${event.actor_username}`
+                  : "Автор: система"}
+              </small>
+              <ContextSummary event={event} />
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </section>
+  );
+}
+
+function ContextSummary({ event }: { event: AuditEvent }) {
+  if (!event.context || Object.keys(event.context).length === 0) {
+    return null;
+  }
+
+  if (
+    event.action === "booking_status_changed" &&
+    typeof event.context.previous_status === "string" &&
+    typeof event.context.status === "string"
+  ) {
+    return (
+      <span>
+        {String(event.context.previous_status)} → {String(event.context.status)}
+      </span>
+    );
+  }
+
+  if (
+    event.action === "booking_rescheduled" &&
+    typeof event.context.previous_starts_at === "string" &&
+    typeof event.context.starts_at === "string"
+  ) {
+    return (
+      <span>
+        {formatDateTime(event.context.previous_starts_at as string)} →{" "}
+        {formatDateTime(event.context.starts_at as string)}
+      </span>
+    );
+  }
+
+  return null;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function uniqueWashers(
