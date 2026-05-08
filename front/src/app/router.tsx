@@ -10,6 +10,7 @@ import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBooking
 import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
 import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
+import { MyCarsPage } from "../features/my-cars/MyCarsPage";
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +39,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute roles={["customer"]}>
             <BookingPage view="details" />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/my/cars",
+        element: (
+          <ProtectedRoute roles={["customer"]}>
+            <MyCarsPage />
           </ProtectedRoute>
         ),
       },

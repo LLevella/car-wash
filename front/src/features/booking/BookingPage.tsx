@@ -4,6 +4,7 @@ import {
   Ban,
   CalendarClock,
   CalendarDays,
+  Car as CarIcon,
   Check,
   Eye,
   RefreshCw,
@@ -795,6 +796,7 @@ function BookingForm({
     createMutation.error instanceof Error ? createMutation.error.message : null;
   const availabilityError =
     availabilityQuery.error instanceof Error ? availabilityQuery.error.message : null;
+  const noActiveCars = !carsQuery.isLoading && (carsQuery.data ?? []).length === 0;
 
   return (
     <section className="page">
@@ -806,6 +808,18 @@ function BookingForm({
           value={date}
         />
       </Toolbar>
+      {noActiveCars ? (
+        <div className="panel state-panel">
+          <p>
+            У вас пока нет автомобилей. Добавьте первый, чтобы записаться на
+            мойку.
+          </p>
+          <Link className="button button--primary" to="/my/cars">
+            <CarIcon size={18} />
+            <span>Перейти к автомобилям</span>
+          </Link>
+        </div>
+      ) : null}
       <div className="booking-flow">
         <form className="panel form-grid">
           <SelectField
@@ -821,7 +835,7 @@ function BookingForm({
             ))}
           </SelectField>
           <SelectField
-            disabled={loadingDictionaries}
+            disabled={loadingDictionaries || noActiveCars}
             label="Автомобиль"
             onChange={(event) => setSelectedCarId(Number(event.target.value))}
             value={selectedCarId ?? ""}

@@ -24,6 +24,12 @@ const navItems = [
     roles: ["customer"],
   },
   {
+    to: "/my/cars",
+    label: "Мои авто",
+    icon: Car,
+    roles: ["customer"],
+  },
+  {
     to: "/manager/schedule",
     label: "Расписание",
     icon: CalendarDays,

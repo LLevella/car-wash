@@ -69,17 +69,77 @@ beforeEach(() => {
         });
       }
 
+      const carDetailMatch = url.match(/\/api\/customers\/cars\/(\d+)\//);
+      if (carDetailMatch) {
+        const id = Number(carDetailMatch[1]);
+        if (method === "DELETE") {
+          return jsonResponse({
+            id,
+            number: `CAR${id}`,
+            customer: 1,
+            is_active: false,
+            car_type: {
+              id: 1,
+              name: "Sedan",
+              description: "Passenger car",
+            },
+          });
+        }
+
+        if (method === "PATCH") {
+          const body = init?.body ? JSON.parse(String(init.body)) : {};
+          return jsonResponse({
+            id,
+            number: body.number ?? `CAR${id}`,
+            customer: 1,
+            is_active: true,
+            car_type: {
+              id: body.car_type ?? 1,
+              name: "Sedan",
+              description: "Passenger car",
+            },
+          });
+        }
+      }
+
+      if (url.includes("/api/customers/cars/") && method === "POST") {
+        const body = init?.body ? JSON.parse(String(init.body)) : {};
+        return jsonResponse(
+          {
+            id: 99,
+            number: body.number ?? "NEW001",
+            customer: 1,
+            is_active: true,
+            car_type: {
+              id: body.car_type ?? 1,
+              name: "Sedan",
+              description: "Passenger car",
+            },
+          },
+          201,
+        );
+      }
+
       if (url.includes("/api/customers/cars/")) {
         return jsonResponse([
           {
             id: 1,
             number: "DEMO001",
+            customer: 1,
+            is_active: true,
             car_type: {
               id: 1,
               name: "Sedan",
               description: "Passenger car",
             },
           },
+        ]);
+      }
+
+      if (url.includes("/api/cars/types/")) {
+        return jsonResponse([
+          { id: 1, name: "Sedan", description: "Passenger car" },
+          { id: 2, name: "SUV", description: "Sport utility" },
         ]);
       }
 

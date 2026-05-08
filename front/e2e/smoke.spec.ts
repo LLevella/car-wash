@@ -17,6 +17,28 @@ test("customer can create a booking and open booking list", async ({ page }) => 
   await expect(page.getByRole("link", { name: "Детали" }).first()).toBeVisible();
 });
 
+test("customer can manage cars from /my/cars", async ({ page }) => {
+  await login(page, "demo_customer", "password");
+
+  await page.getByRole("link", { name: "Мои авто" }).click();
+  await expect(page.getByRole("heading", { name: "Мои автомобили" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Добавить автомобиль" }).click();
+  const dialog = page.getByRole("dialog", { name: "Новый автомобиль" });
+  await expect(dialog).toBeVisible();
+
+  const plate = `E2E${Date.now().toString().slice(-6)}`;
+  await dialog.getByLabel("Номер").fill(plate);
+  await dialog.getByRole("button", { name: "Сохранить" }).click();
+
+  await expect(page.getByRole("cell", { name: plate })).toBeVisible();
+
+  await page.once("dialog", (confirm) => confirm.accept());
+  await page.getByRole("button", { name: `Удалить ${plate}` }).click();
+
+  await expect(page.getByRole("cell", { name: plate })).toHaveCount(0);
+});
+
 test("manager can open schedule and create a resource block", async ({ page }) => {
   await login(page, "demo_manager", "password");
 

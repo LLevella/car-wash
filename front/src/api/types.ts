@@ -51,6 +51,8 @@ export type CustomerCar = {
   id: number;
   number: string;
   car_type: number | CarType;
+  customer?: number | null;
+  is_active?: boolean;
 };
 
 export type CurrentCustomer = {
