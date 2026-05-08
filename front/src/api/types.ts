@@ -157,6 +157,16 @@ export type AuditEvent = {
   created_at: string;
 };
 
+export type ManagerReports = {
+  date_from: string;
+  date_to: string;
+  bookings_total: number;
+  bookings_by_status: { status: BookingStatus; count: number }[];
+  revenue_paid: string;
+  box_utilization: { wash_box: number; minutes: number }[];
+  washer_utilization: { washer: number; minutes: number }[];
+};
+
 export type ManagerScheduleSummary = {
   total_bookings: number;
   active_bookings: number;

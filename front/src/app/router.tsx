@@ -9,6 +9,7 @@ import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerB
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
 import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
 import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
+import { ManagerReportsPage } from "../features/manager-reports/ManagerReportsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 import { MyCarsPage } from "../features/my-cars/MyCarsPage";
 
@@ -87,6 +88,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute roles={["manager", "admin"]}>
             <ManagerResourceBlocksPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/manager/reports",
+        element: (
+          <ProtectedRoute roles={["manager", "admin"]}>
+            <ManagerReportsPage />
           </ProtectedRoute>
         ),
       },

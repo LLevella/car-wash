@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  BarChart3,
   CalendarDays,
   Car,
   ClipboardList,
@@ -51,6 +52,12 @@ const navItems = [
     to: "/manager/resource-blocks",
     label: "Блокировки",
     icon: ShieldAlert,
+    roles: ["manager", "admin"],
+  },
+  {
+    to: "/manager/reports",
+    label: "Отчёты",
+    icon: BarChart3,
     roles: ["manager", "admin"],
   },
 ] satisfies Array<{

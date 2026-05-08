@@ -340,6 +340,31 @@ export interface paths {
         patch: operations["manager_bookings_status_partial_update"];
         trace?: never;
     };
+    "/api/manager/reports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Manager-facing aggregates for the daily and weekly reporting page.
+         *
+         *     Accepts ``?station=&date_from=&date_to=`` query params; ``date_from``
+         *     defaults to today, ``date_to`` to ``date_from``. Filters bookings by
+         *     ``starts_at`` (inclusive). Aggregates honour ``ManagerStationAccess``
+         *     and only revenue from ``payment_status="paid"`` rows is counted; all
+         *     booking counts use any non-cancelled status.
+         */
+        get: operations["manager_reports_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/manager/resource-blocks/": {
         parameters: {
             query?: never;
@@ -1186,6 +1211,32 @@ export interface operations {
                 };
             };
         };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                    "application/vnd.api+json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    manager_reports_retrieve: {
+        parameters: {
+            query?: {
+                format?: "json" | "vnd.api+json";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {

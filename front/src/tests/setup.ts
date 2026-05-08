@@ -249,6 +249,21 @@ beforeEach(() => {
         return jsonResponse([]);
       }
 
+      if (url.includes("/api/manager/reports/")) {
+        return jsonResponse({
+          date_from: "2099-05-08",
+          date_to: "2099-05-08",
+          bookings_total: 3,
+          bookings_by_status: [
+            { status: "completed", count: 2 },
+            { status: "pending", count: 1 },
+          ],
+          revenue_paid: "5400.00",
+          box_utilization: [{ wash_box: 1, minutes: 90 }],
+          washer_utilization: [{ washer: 1, minutes: 90 }],
+        });
+      }
+
       if (url.includes("/api/car-wash/bookings/1/cancel/")) {
         return jsonResponse({ ...bookingFixture(), status: "cancelled" });
       }

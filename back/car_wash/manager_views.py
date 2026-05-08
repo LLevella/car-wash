@@ -140,6 +140,59 @@ class ManagerBookingAuditView(APIView):
         return success_response([_audit_event_payload(event) for event in events])
 
 
+class ManagerReportsView(APIView):
+    """Manager-facing aggregates for the daily and weekly reporting page.
+
+    Accepts ``?station=&date_from=&date_to=`` query params; ``date_from``
+    defaults to today, ``date_to`` to ``date_from``. Filters bookings by
+    ``starts_at`` (inclusive). Aggregates honour ``ManagerStationAccess``
+    and only revenue from ``payment_status="paid"`` rows is counted; all
+    booking counts use any non-cancelled status."""
+
+    permission_classes = (IsManager,)
+
+    def get(self, request):
+        date_from_raw = request.query_params.get("date_from")
+        date_to_raw = request.query_params.get("date_to")
+        try:
+            date_from, date_to = _parse_report_range(date_from_raw, date_to_raw)
+        except ValueError as exc:
+            return error_response(
+                str(exc),
+                field_errors={"date_from": [str(exc)]} if "date_from" in str(exc) else {"date_to": [str(exc)]},
+                code="validation_error",
+            )
+
+        bookings = restrict_queryset_to_accessible_stations(
+            Booking.objects.prefetch_related("assignments"),
+            request.user,
+            station_field="wash_station",
+        )
+
+        station_id = request.query_params.get("station")
+        if station_id:
+            wash_station = get_object_or_404(WashStation, pk=station_id)
+            if not can_access_station(request.user, wash_station):
+                return _station_access_denied_response()
+            bookings = bookings.filter(wash_station=wash_station)
+
+        period_start, period_end = _day_bounds(date_from)
+        _, period_end = _day_bounds(date_to)
+        bookings = bookings.filter(
+            starts_at__gte=period_start,
+            starts_at__lt=period_end,
+        )
+
+        totals = _aggregate_reports(list(bookings))
+        return success_response(
+            {
+                "date_from": date_from.isoformat(),
+                "date_to": date_to.isoformat(),
+                **totals,
+            }
+        )
+
+
 class ManagerBookingListView(APIView):
     permission_classes = (IsManager,)
 
@@ -479,6 +532,65 @@ def _get_required_washers(value):
         raise BookingError("Один или несколько мойщиков не найдены.")
 
     return washers
+
+
+def _parse_report_range(date_from_raw, date_to_raw):
+    today = timezone.localdate()
+    date_from = parse_date(date_from_raw or "") if date_from_raw else today
+    if date_from is None:
+        raise ValueError("date_from должен быть в формате YYYY-MM-DD.")
+
+    date_to = parse_date(date_to_raw or "") if date_to_raw else date_from
+    if date_to is None:
+        raise ValueError("date_to должен быть в формате YYYY-MM-DD.")
+
+    if date_to < date_from:
+        raise ValueError("date_to не может быть раньше date_from.")
+
+    return date_from, date_to
+
+
+def _aggregate_reports(bookings):
+    """Compute per-period aggregates that the manager reports page renders."""
+
+    from decimal import Decimal
+
+    bookings_by_status: dict[str, int] = {}
+    revenue_paid = Decimal("0")
+    box_minutes: dict[int, int] = defaultdict(int)
+    washer_minutes: dict[int, int] = defaultdict(int)
+
+    for booking in bookings:
+        bookings_by_status[booking.status] = (
+            bookings_by_status.get(booking.status, 0) + 1
+        )
+        if booking.payment_status == Booking.PaymentStatus.PAID:
+            revenue_paid += booking.paid_amount
+
+        if booking.status in ACTIVE_BOOKING_STATUSES or booking.status == Booking.Status.COMPLETED:
+            duration = booking.ends_at - booking.starts_at
+            minutes = int(duration.total_seconds() // 60)
+            if booking.wash_box_id:
+                box_minutes[booking.wash_box_id] += minutes
+            for assignment in booking.assignments.all():
+                washer_minutes[assignment.washer_id] += minutes
+
+    return {
+        "bookings_total": len(bookings),
+        "bookings_by_status": [
+            {"status": status, "count": count}
+            for status, count in sorted(bookings_by_status.items())
+        ],
+        "revenue_paid": str(revenue_paid),
+        "box_utilization": [
+            {"wash_box": box_id, "minutes": minutes}
+            for box_id, minutes in sorted(box_minutes.items())
+        ],
+        "washer_utilization": [
+            {"washer": washer_id, "minutes": minutes}
+            for washer_id, minutes in sorted(washer_minutes.items())
+        ],
+    }
 
 
 def _audit_create(actor, action, entity, context):

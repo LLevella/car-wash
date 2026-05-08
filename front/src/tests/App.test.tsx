@@ -11,6 +11,7 @@ import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerB
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
 import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
 import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
+import { ManagerReportsPage } from "../features/manager-reports/ManagerReportsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 import { MyCarsPage } from "../features/my-cars/MyCarsPage";
 
@@ -39,6 +40,7 @@ function renderRoute(path = "/book") {
             path: "/manager/resource-blocks",
             element: <ManagerResourceBlocksPage />,
           },
+          { path: "/manager/reports", element: <ManagerReportsPage /> },
         ],
       },
     ],
@@ -203,6 +205,20 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Номер")).toBeInTheDocument();
     expect(screen.getByLabelText("Тип")).toBeInTheDocument();
+  });
+
+  it("renders manager reports aggregates", async () => {
+    renderRoute("/manager/reports");
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Отчёты" }),
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Завершена/)).toBeInTheDocument();
+      expect(screen.getByText(/5\s?400,00\s?₽/)).toBeInTheDocument();
+      expect(screen.getByText(/Бокс #1/)).toBeInTheDocument();
+      expect(screen.getByText(/Мойщик #1/)).toBeInTheDocument();
+    });
   });
 
   it("validates car form input", async () => {

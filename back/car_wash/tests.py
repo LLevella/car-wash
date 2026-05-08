@@ -1416,6 +1416,60 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(first["actor"], self.manager_user.id)
         self.assertEqual(first["actor_username"], self.manager_user.username)
 
+    def test_manager_reports_endpoint_aggregates_for_day(self):
+        self._login_manager()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        mark_booking_paid(booking=booking, amount=booking.down_payment)
+
+        response = self.client.get(
+            reverse("api:manager:reports"),
+            {"station": self.station.id, "date_from": self.day.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(payload["date_from"], self.day.isoformat())
+        self.assertEqual(payload["date_to"], self.day.isoformat())
+        self.assertEqual(payload["bookings_total"], 1)
+        self.assertEqual(payload["bookings_by_status"], [{"status": "pending", "count": 1}])
+        self.assertEqual(payload["revenue_paid"], str(booking.down_payment))
+        self.assertEqual(
+            payload["box_utilization"][0]["wash_box"], self.box.id
+        )
+        self.assertEqual(payload["box_utilization"][0]["minutes"], 60)
+        self.assertEqual(
+            payload["washer_utilization"][0]["washer"], self.washer.id
+        )
+
+    def test_manager_reports_endpoint_validates_range(self):
+        self._login_manager()
+
+        response = self.client.get(
+            reverse("api:manager:reports"),
+            {"date_from": "not-a-date"},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+
+    def test_manager_reports_endpoint_rejects_inaccessible_station(self):
+        self._login_manager()
+        other_station = self._create_station_without_manager_access()
+
+        response = self.client.get(
+            reverse("api:manager:reports"),
+            {"station": other_station.id, "date_from": self.day.isoformat()},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
+
     def test_manager_booking_audit_endpoint_rejects_inaccessible_station(self):
         self._login_manager()
         booking = self._create_booking_without_manager_station_access()

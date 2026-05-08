@@ -3,6 +3,7 @@ import type {
   AuditEvent,
   Booking,
   BookingStatus,
+  ManagerReports,
   ManagerScheduleDay,
   ResourceBlock,
   WasherShift,
@@ -63,6 +64,18 @@ export function getManagerBooking(id: number) {
 
 export function getManagerBookingAudit(id: number) {
   return apiRequest<AuditEvent[]>(`/api/manager/bookings/${id}/audit/`);
+}
+
+export type ManagerReportsParams = {
+  station?: number;
+  date_from: string;
+  date_to?: string;
+};
+
+export function getManagerReports(params: ManagerReportsParams) {
+  return apiRequest<ManagerReports>(
+    `/api/manager/reports/?${new URLSearchParams(stringifyParams(params)).toString()}`,
+  );
 }
 
 export function assignBooking(

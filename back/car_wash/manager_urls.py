@@ -8,6 +8,7 @@ from car_wash.manager_views import (
     ManagerBookingDetailView,
     ManagerBookingListView,
     ManagerBookingStatusView,
+    ManagerReportsView,
     ManagerResourceBlockListCreateView,
     ManagerScheduleView,
     ManagerShiftListCreateView,
@@ -45,4 +46,5 @@ urlpatterns = [
         ManagerResourceBlockListCreateView.as_view(),
         name="resource-block-list",
     ),
+    path("reports/", ManagerReportsView.as_view(), name="reports"),
 ]
