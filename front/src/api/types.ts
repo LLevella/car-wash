@@ -91,6 +91,8 @@ export type BookingStatus =
   | "cancelled"
   | "no_show";
 
+export type PaymentStatus = "unpaid" | "awaiting" | "paid" | "refunded";
+
 export type BookingAssignment = {
   id: number;
   name: string;
@@ -110,6 +112,10 @@ export type Booking = {
   cost: string;
   down_payment: string;
   residual: string;
+  payment_status?: PaymentStatus;
+  paid_amount?: string;
+  payment_provider?: string;
+  payment_reference?: string;
   washers: BookingAssignment[];
 };
 

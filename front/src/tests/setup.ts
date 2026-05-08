@@ -311,6 +311,10 @@ function bookingFixture() {
     cost: "1200.00",
     down_payment: "300.00",
     residual: "900.00",
+    payment_status: "paid",
+    paid_amount: "300.00",
+    payment_provider: "stripe",
+    payment_reference: "pi_demo_001",
     washers: [{ id: 1, name: "Alex Washer", role: "main" }],
   };
 }

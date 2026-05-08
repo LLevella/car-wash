@@ -37,6 +37,7 @@ import type {
 import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
 import { Modal } from "../../components/Modal";
+import { PaymentBadge } from "../../components/PaymentBadge";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
 import { useCurrentUser } from "../auth/useAuth";
@@ -422,7 +423,10 @@ function CustomerBookingDetailsView({
             </div>
             <div>
               <dt>Аванс</dt>
-              <dd>{formatMoney(booking.down_payment)}</dd>
+              <dd>
+                {formatMoney(booking.down_payment)}{" "}
+                <PaymentBadge status={booking.payment_status} />
+              </dd>
             </div>
             <div>
               <dt>Остаток</dt>

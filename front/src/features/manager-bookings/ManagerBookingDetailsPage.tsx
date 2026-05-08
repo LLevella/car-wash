@@ -21,6 +21,7 @@ import type {
   WashType,
 } from "../../api/types";
 import { Button } from "../../components/Button";
+import { PaymentBadge } from "../../components/PaymentBadge";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
 import { AssignmentModal } from "./AssignmentModal";
@@ -195,7 +196,10 @@ export function ManagerBookingDetailsPage() {
             </div>
             <div>
               <dt>Аванс</dt>
-              <dd>{formatMoney(booking.down_payment)}</dd>
+              <dd>
+                {formatMoney(booking.down_payment)}{" "}
+                <PaymentBadge status={booking.payment_status} />
+              </dd>
             </div>
             <div>
               <dt>Остаток</dt>

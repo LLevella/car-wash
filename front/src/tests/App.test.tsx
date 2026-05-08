@@ -125,6 +125,8 @@ describe("App", () => {
     expect(screen.getByText("Клиент #1")).toBeInTheDocument();
     expect(screen.getByText("Бокс 1")).toBeInTheDocument();
     expect(screen.getByText("Alex Washer")).toBeInTheDocument();
+    const badges = await screen.findAllByTestId("payment-badge");
+    expect(badges[0]).toHaveTextContent("Оплачено");
   });
 
   it("renders audit history for manager bookings", async () => {
