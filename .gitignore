@@ -29,3 +29,6 @@ front/test-results/
 .idea/
 .vscode/
 .DS_Store
+
+# Generated OpenAPI schema (regenerated in CI, kept local for dev)
+openapi.yaml
