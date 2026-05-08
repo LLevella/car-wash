@@ -161,6 +161,14 @@ npm test
 npm run build
 ```
 
+E2E smoke tests run against the Docker stack with demo data:
+
+```bash
+docker compose up --build -d
+cd front
+npm run test:e2e
+```
+
 Demo users:
 
 - `demo_customer` / `password`
@@ -186,6 +194,9 @@ in your shell, process manager, container, or hosting platform.
 | `DJANGO_DEBUG` | Enables debug mode | `true` |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | local hosts in debug |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated CSRF trusted origins | empty |
+| `DJANGO_CORS_ALLOWED_ORIGINS` | Comma-separated origins allowed to call the API from a separate frontend host | empty |
+| `DJANGO_CORS_ALLOW_CREDENTIALS` | Allows session cookies on CORS requests | `true` when CORS origins are set |
+| `VITE_API_BASE_URL` | Frontend build-time API origin. Leave empty for same-origin `/api/` | empty |
 | `DATABASE_URL` | Database URL. Supports SQLite and PostgreSQL | `back/db.sqlite3` |
 | `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `false` |
 | `DJANGO_SESSION_COOKIE_SECURE` | Secure session cookie flag | `not DEBUG` |
@@ -203,6 +214,14 @@ export DJANGO_SECRET_KEY="<strong-secret>"
 export DJANGO_ALLOWED_HOSTS="carwash.example.com"
 export DATABASE_URL="postgres://carwash:password@localhost:5432/carwash"
 ```
+
+Frontend production modes:
+
+- Same-origin: leave `VITE_API_BASE_URL` empty and route `/api/` and
+  `/health/` to Django from the same public origin.
+- Separate frontend host: set `VITE_API_BASE_URL` to the backend origin, and
+  add the frontend origin to both `DJANGO_CORS_ALLOWED_ORIGINS` and
+  `DJANGO_CSRF_TRUSTED_ORIGINS`.
 
 ### API
 
@@ -352,7 +371,10 @@ GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
   up to date, applies migrations, runs Django deployment checks, and runs tests
   with coverage.
 - Uses Node.js for `front/`, installs npm dependencies, runs lint, formatting
-  check, Vitest, and production build.
+  check, Vitest, and production build, then uploads `front/dist/` as the
+  `frontend-dist` artifact.
+- `.github/workflows/e2e.yml` can be started manually to run Playwright smoke
+  tests against the full Docker stack.
 - Coverage must stay at or above 80%.
 - The deploy job runs only after successful backend and frontend CI on pushes to
   `master` or `main`. It is skipped until SSH deployment secrets are configured.
@@ -364,8 +386,12 @@ Deployment secrets:
 - `DEPLOY_USER` - SSH user.
 - `DEPLOY_KEY` - private SSH key.
 - `DEPLOY_PATH` - project path on the server for the default command.
+- `DEPLOY_FRONTEND_PATH` - optional directory where the `frontend-dist` artifact
+  should be unpacked, for example an Nginx static root.
 - `DEPLOY_COMMAND` - optional full remote deploy command. When omitted, the
-  workflow runs `cd $DEPLOY_PATH && git pull --ff-only && cd back && python manage.py migrate --noinput`.
+  workflow pulls the project, runs migrations, and either uploads the
+  `frontend-dist` artifact to `DEPLOY_FRONTEND_PATH` or builds `front/dist/` on
+  the server when no frontend artifact path is configured.
 
 ### Development Status
 
@@ -375,6 +401,9 @@ demo data, CI/CD, production-ready runtime configuration, model cleanup, and
 SPA auth API, and frontend dictionary API. See
 [docs/implementation-plan.md](docs/implementation-plan.md) for details and
 acceptance criteria.
+Frontend MVP stages 1-8 are implemented through the production build/deploy
+stage. See
+[docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).
 
 ## Русский
 
@@ -533,6 +562,14 @@ npm test
 npm run build
 ```
 
+E2E smoke-тесты запускаются против Docker stack с демо-данными:
+
+```bash
+docker compose up --build -d
+cd front
+npm run test:e2e
+```
+
 Демо-пользователи:
 
 - `demo_customer` / `password`
@@ -558,6 +595,9 @@ shell, process manager, container или на hosting platform.
 | `DJANGO_DEBUG` | Включает debug mode | `true` |
 | `DJANGO_ALLOWED_HOSTS` | Hosts через запятую | local hosts в debug |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | CSRF trusted origins через запятую | empty |
+| `DJANGO_CORS_ALLOWED_ORIGINS` | Origins, которым разрешены API-запросы с отдельного frontend host | empty |
+| `DJANGO_CORS_ALLOW_CREDENTIALS` | Разрешает session cookies в CORS-запросах | `true`, если заданы CORS origins |
+| `VITE_API_BASE_URL` | Build-time API origin для frontend. Оставьте пустым для same-origin `/api/` | empty |
 | `DATABASE_URL` | URL базы. Поддерживает SQLite и PostgreSQL | `back/db.sqlite3` |
 | `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `false` |
 | `DJANGO_SESSION_COOKIE_SECURE` | Secure session cookie flag | `not DEBUG` |
@@ -575,6 +615,14 @@ export DJANGO_SECRET_KEY="<strong-secret>"
 export DJANGO_ALLOWED_HOSTS="carwash.example.com"
 export DATABASE_URL="postgres://carwash:password@localhost:5432/carwash"
 ```
+
+Production-режимы frontend:
+
+- Same-origin: оставьте `VITE_API_BASE_URL` пустым и проксируйте `/api/` и
+  `/health/` в Django с того же публичного origin.
+- Отдельный frontend host: задайте `VITE_API_BASE_URL` как backend origin, а
+  frontend origin добавьте в `DJANGO_CORS_ALLOWED_ORIGINS` и
+  `DJANGO_CSRF_TRUSTED_ORIGINS`.
 
 ### API
 
@@ -725,7 +773,10 @@ GitHub Actions workflow: `.github/workflows/ci-cd.yml`.
   актуальность миграций, применяет миграции, запускает Django deployment checks
   и Django-тесты с coverage.
 - Использует Node.js для `front/`, устанавливает npm-зависимости, запускает
-  lint, проверку форматирования, Vitest и production build.
+  lint, проверку форматирования, Vitest и production build, затем загружает
+  `front/dist/` как artifact `frontend-dist`.
+- `.github/workflows/e2e.yml` можно запускать вручную для Playwright smoke
+  tests против полного Docker stack.
 - Покрытие должно быть не ниже 80%.
 - Deploy job запускается только после успешного backend и frontend CI на push в
   `master` или `main`. Пока SSH secrets не настроены, деплой безопасно
@@ -738,8 +789,12 @@ Secrets для деплоя:
 - `DEPLOY_USER` - SSH-пользователь.
 - `DEPLOY_KEY` - приватный SSH-ключ.
 - `DEPLOY_PATH` - путь к проекту на сервере для команды по умолчанию.
+- `DEPLOY_FRONTEND_PATH` - опциональная директория, куда распаковать artifact
+  `frontend-dist`, например static root Nginx.
 - `DEPLOY_COMMAND` - опциональная полная команда деплоя на сервере. Если она
-  не задана, workflow выполнит `cd $DEPLOY_PATH && git pull --ff-only && cd back && python manage.py migrate --noinput`.
+  не задана, workflow подтянет проект, применит миграции и либо загрузит
+  artifact `frontend-dist` в `DEPLOY_FRONTEND_PATH`, либо соберет `front/dist/`
+  на сервере, если путь для frontend artifact не настроен.
 
 ### Статус разработки
 
@@ -749,3 +804,5 @@ Secrets для деплоя:
 моделей, SPA auth API и frontend dictionary API. Подробности и критерии
 готовности - в
 [docs/implementation-plan.md](docs/implementation-plan.md).
+Frontend MVP этапы 1-8 выполнены до production build/deploy включительно.
+См. [docs/frontend-implementation-plan.md](docs/frontend-implementation-plan.md).

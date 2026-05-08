@@ -107,7 +107,16 @@ jobs:
 
       - name: Build frontend
         working-directory: front
+        env:
+          VITE_API_BASE_URL: ""
         run: npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: front/dist/
+          if-no-files-found: error
 
   deploy:
     name: Deploy
@@ -124,6 +133,7 @@ jobs:
       DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
       DEPLOY_COMMAND: ${{ secrets.DEPLOY_COMMAND }}
+      DEPLOY_FRONTEND_PATH: ${{ secrets.DEPLOY_FRONTEND_PATH }}
 
     steps:
       - name: Check deployment configuration
@@ -146,6 +156,23 @@ jobs:
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
           ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
+      - name: Download frontend build artifact
+        if: ${{ steps.config.outputs.configured == 'true' && env.DEPLOY_FRONTEND_PATH != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist
+
+      - name: Upload frontend assets
+        if: ${{ steps.config.outputs.configured == 'true' && env.DEPLOY_FRONTEND_PATH != '' }}
+        run: |
+          tar -C frontend-dist -czf frontend-dist.tar.gz .
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          scp -P "$DEPLOY_PORT" frontend-dist.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/tmp/car-wash-frontend-dist.tar.gz"
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            'set -eu; target=$1; mkdir -p "$target"; tar -xzf /tmp/car-wash-frontend-dist.tar.gz -C "$target"; rm /tmp/car-wash-frontend-dist.tar.gz' \
+            sh "$DEPLOY_FRONTEND_PATH"
+
       - name: Deploy over SSH
         if: ${{ steps.config.outputs.configured == 'true' }}
         run: |
@@ -155,7 +182,11 @@ jobs:
               exit 1
             fi
 
-            DEPLOY_COMMAND="cd $DEPLOY_PATH && git pull --ff-only && cd back && python manage.py migrate --noinput"
+            if [ -n "$DEPLOY_FRONTEND_PATH" ]; then
+              DEPLOY_COMMAND="cd $DEPLOY_PATH && git pull --ff-only && cd back && python manage.py migrate --noinput"
+            else
+              DEPLOY_COMMAND="cd $DEPLOY_PATH && git pull --ff-only && cd front && npm ci && npm run build && cd ../back && python manage.py migrate --noinput"
+            fi
           fi
 
           DEPLOY_PORT="${DEPLOY_PORT:-22}"

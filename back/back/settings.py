@@ -37,6 +37,11 @@ ALLOWED_HOSTS = env_list(
 )
 
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
+CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
+CORS_ALLOW_CREDENTIALS = env_bool(
+    "DJANGO_CORS_ALLOW_CREDENTIALS",
+    bool(CORS_ALLOWED_ORIGINS),
+)
 
 
 # Application definition
@@ -48,9 +53,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
+
     # added
-    
+
+    'corsheaders',
     'rest_framework',
     'rest_framework_json_api',
     'django_filters',
@@ -63,6 +69,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
