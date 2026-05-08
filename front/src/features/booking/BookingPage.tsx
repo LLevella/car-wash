@@ -814,10 +814,7 @@ function BookingForm({
       </Toolbar>
       {noActiveCars ? (
         <div className="panel state-panel">
-          <p>
-            У вас пока нет автомобилей. Добавьте первый, чтобы записаться на
-            мойку.
-          </p>
+          <p>У вас пока нет автомобилей. Добавьте первый, чтобы записаться на мойку.</p>
           <Link className="button button--primary" to="/my/cars">
             <CarIcon size={18} />
             <span>Перейти к автомобилям</span>

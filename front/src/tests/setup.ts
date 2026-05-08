@@ -211,9 +211,7 @@ beforeEach(() => {
         ]);
       }
 
-      const managerBookingDetailMatch = url.match(
-        /\/api\/manager\/bookings\/(\d+)\/$/,
-      );
+      const managerBookingDetailMatch = url.match(/\/api\/manager\/bookings\/(\d+)\/$/);
       if (managerBookingDetailMatch && method === "GET") {
         return jsonResponse({
           ...bookingFixture(),

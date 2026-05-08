@@ -50,8 +50,7 @@ export function ManagerReportsPage() {
 
   const stations = stationsQuery.data ?? [];
   const reports = reportsQuery.data;
-  const error =
-    reportsQuery.error instanceof Error ? reportsQuery.error.message : null;
+  const error = reportsQuery.error instanceof Error ? reportsQuery.error.message : null;
 
   return (
     <section className="page">
@@ -110,9 +109,7 @@ function ReportsView({ reports }: { reports: ManagerReports }) {
             <dt>Период</dt>
             <dd>
               {reports.date_from}
-              {reports.date_to !== reports.date_from
-                ? ` – ${reports.date_to}`
-                : null}
+              {reports.date_to !== reports.date_from ? ` – ${reports.date_to}` : null}
             </dd>
           </div>
           <div>

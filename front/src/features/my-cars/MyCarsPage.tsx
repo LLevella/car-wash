@@ -27,10 +27,7 @@ const schema = z.object({
 
 type CarFormValues = z.infer<typeof schema>;
 
-type EditingState =
-  | { mode: "create" }
-  | { mode: "edit"; car: CustomerCar }
-  | null;
+type EditingState = { mode: "create" } | { mode: "edit"; car: CustomerCar } | null;
 
 export function MyCarsPage() {
   const queryClient = useQueryClient();
@@ -154,9 +151,7 @@ export function MyCarsPage() {
           </table>
         </div>
       ) : null}
-      {deleteError ? (
-        <div className="panel field__error">{deleteError}</div>
-      ) : null}
+      {deleteError ? <div className="panel field__error">{deleteError}</div> : null}
       <CarFormModal
         carTypes={carTypes}
         editing={editing}
