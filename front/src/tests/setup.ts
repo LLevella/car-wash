@@ -159,6 +159,9 @@ beforeEach(() => {
         return jsonResponse({
           station: 1,
           date: "2099-05-08",
+          day_starts_at: "2099-05-08T00:00:00",
+          day_ends_at: "2099-05-09T00:00:00",
+          step_minutes: 30,
           boxes: [{ id: 1, name: "Bay 1", is_active: true }],
           shifts: [
             {
@@ -173,6 +176,12 @@ beforeEach(() => {
           ],
           resource_blocks: [],
           bookings: [bookingFixture()],
+          summary: {
+            total_bookings: 1,
+            active_bookings: 1,
+            busy_box_minutes: [{ wash_box: 1, minutes: 45 }],
+            busy_washer_minutes: [{ washer: 1, minutes: 45 }],
+          },
         });
       }
 

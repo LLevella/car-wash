@@ -133,11 +133,22 @@ export type ResourceBlock = {
   reason: string;
 };
 
+export type ManagerScheduleSummary = {
+  total_bookings: number;
+  active_bookings: number;
+  busy_box_minutes: { wash_box: number; minutes: number }[];
+  busy_washer_minutes: { washer: number; minutes: number }[];
+};
+
 export type ManagerScheduleDay = {
   station: number;
   date: string;
+  day_starts_at?: string;
+  day_ends_at?: string;
+  step_minutes?: number;
   boxes: WashBox[];
   shifts: WasherShift[];
   resource_blocks: ResourceBlock[];
   bookings: Booking[];
+  summary?: ManagerScheduleSummary;
 };

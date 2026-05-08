@@ -9,10 +9,10 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-17 выполнены.
+- Backend этапы 1-18 выполнены.
 - Frontend MVP этапы 1-9 выполнены (включая production build/deploy и
   управление автомобилями клиента).
-- В работе/планируется: backend этапы 18-24, расширение frontend (F10-F14),
+- В работе/планируется: backend этапы 19-24, расширение frontend (F10-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -382,6 +382,7 @@ PATCH  /api/car-wash/bookings/{id}/status/
 
 GET    /api/manager/schedule/?station=1&date=YYYY-MM-DD
 GET    /api/manager/bookings/
+GET    /api/manager/bookings/{id}/
 PATCH  /api/manager/bookings/{id}/assign/
 PATCH  /api/manager/bookings/{id}/status/
 GET    /api/manager/shifts/
@@ -394,7 +395,6 @@ GET    /health/
 
 ### 6.2 Запланированные endpoints
 
-- `GET /api/manager/bookings/{id}/` — детали записи для manager (этап B18).
 - `GET /api/schema/` + Swagger/ReDoc — OpenAPI документация (этап B19).
 - Manager-endpoints дневных агрегатов (этап B24).
 - Endpoint просмотра audit-истории записи (этап B20).
@@ -580,6 +580,7 @@ Frontend использует следующие endpoints (актуально �
 | `/api/car-wash/bookings/{id}/status/`          | PATCH                 | используется только manager            |
 | `/api/manager/schedule/`                       | GET                   | `ManagerSchedulePage`                  |
 | `/api/manager/bookings/`                       | GET                   | `ManagerBookingsPage`                  |
+| `/api/manager/bookings/{id}/`                  | GET                   | available for manager details (B18)    |
 | `/api/manager/bookings/{id}/assign/`           | PATCH                 | `AssignmentModal`                      |
 | `/api/manager/bookings/{id}/status/`           | PATCH                 | manager actions                        |
 | `/api/manager/shifts/`                         | GET, POST             | `ManagerShiftsPage`                    |
@@ -1252,9 +1253,9 @@ F-этап не стартует, пока соответствующий B-эт
 - PostgreSQL-specific блокировки изолированы в `_lock_station` и
   документированы в коде.
 
-### 10.2 Backend, в плане
-
 #### B18. Улучшение manager schedule API
+
+Статус: выполнен.
 
 Задачи:
 
@@ -1264,11 +1265,43 @@ F-этап не стартует, пока соответствующий B-эт
 - Поддержать partial refresh после изменения одной записи.
 - Добавить endpoint деталей: `GET /api/manager/bookings/{id}/`.
 
+Реализовано:
+
+- Endpoint `GET /api/manager/schedule/?station=&date=` теперь возвращает
+  поля `day_starts_at`, `day_ends_at`, `step_minutes`
+  (`SCHEDULE_DEFAULT_STEP_MINUTES = 30`).
+- Добавлено поле `summary` с `total_bookings`, `active_bookings`,
+  `busy_box_minutes` и `busy_washer_minutes` (агрегаты по
+  активным статусам `pending`/`confirmed`/`in_progress`, отсечённые
+  границами дня).
+- Добавлен endpoint `GET /api/manager/bookings/{id}/`
+  (`ManagerBookingDetailView`), фильтруемый правом доступа к станции; URL
+  зарегистрирован под именем `api:manager:booking-detail`.
+- `ManagerBookingListView` уже поддерживал фильтры `station`, `date`,
+  `status`, `box`, `washer` — поведение задокументировано тестами и
+  типами.
+- Добавлены backend-тесты:
+  `test_manager_schedule_api_returns_day_resources_and_bookings`
+  (расширен новыми ассертами на `day_starts_at`, `day_ends_at`,
+  `step_minutes`, `summary`),
+  `test_manager_schedule_summary_excludes_cancelled_bookings`,
+  `test_manager_booking_detail_returns_booking`,
+  `test_manager_booking_detail_rejects_inaccessible_station`.
+- Frontend тип `ManagerScheduleDay` расширен опциональными
+  `day_starts_at`, `day_ends_at`, `step_minutes`, `summary`. Добавлен
+  helper `getManagerBooking(id)` в `api/manager.ts`. Setup-фикстуры тестов
+  обновлены под новый payload.
+
 Критерии готовности:
 
-- frontend может рисовать расписание без дополнительных вычислений в UI;
-- manager видит загрузку боксов и мойщиков;
-- payload остается приемлемым по размеру для одного дня.
+- frontend получает рассчитанные границы дня и шаг сетки и не пересчитывает
+  их в UI;
+- agregates в `summary` показывают загрузку боксов и мойщиков по дню;
+- manager-детали записи доступны через единый endpoint;
+- payload расширен без удаления старых полей (обратная совместимость
+  сохранена).
+
+### 10.2 Backend, в плане
 
 #### B19. OpenAPI и типы для frontend
 
@@ -1955,19 +1988,19 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B17 и F1-F9 выполнены):
+С учётом текущего статуса (B1-B18 и F1-F9 выполнены):
 
-1. **B18** — улучшение manager schedule API под удобный frontend.
-2. **F10** — обновление frontend под новый schedule API (зависит от B18).
-3. **B19** — OpenAPI и подготовка к генерации типов.
-4. **F11** — генерация типов из OpenAPI (зависит от B19).
-5. **B20** — audit log управленческих действий.
-6. **F12** — UI просмотра audit log (зависит от B20).
-7. **B21**, **B22** — notifications-ready и payment-ready слои.
-8. **F13** — статус оплаты в UI (зависит от B22).
-9. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
+1. **F10** — обновление frontend под новый schedule API (B18 выполнен,
+   F10 разблокирован).
+2. **B19** — OpenAPI и подготовка к генерации типов.
+3. **F11** — генерация типов из OpenAPI (зависит от B19).
+4. **B20** — audit log управленческих действий.
+5. **F12** — UI просмотра audit log (зависит от B20).
+6. **B21**, **B22** — notifications-ready и payment-ready слои.
+7. **F13** — статус оплаты в UI (зависит от B22).
+8. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
    observability.
-10. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+9. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,

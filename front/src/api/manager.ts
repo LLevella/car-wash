@@ -56,6 +56,10 @@ export function getManagerBookings(filters: ManagerBookingFilters = {}) {
   );
 }
 
+export function getManagerBooking(id: number) {
+  return apiRequest<Booking>(`/api/manager/bookings/${id}/`);
+}
+
 export function assignBooking(
   id: number,
   payload: { wash_box: number | null; washers: number[] },

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, time, timedelta
 
 from django.core.exceptions import ValidationError
@@ -17,12 +18,16 @@ from car_wash.permissions import (
     can_access_station,
     restrict_queryset_to_accessible_stations,
 )
+from car_wash.services.availability import ACTIVE_BOOKING_STATUSES
 from car_wash.services.booking import (
     BookingError,
     assign_booking_resources,
     change_booking_status,
 )
 from car_wash.views import _booking_payload
+
+
+SCHEDULE_DEFAULT_STEP_MINUTES = 30
 
 
 class StationAccessError(PermissionError):
@@ -71,22 +76,43 @@ class ManagerScheduleView(APIView):
             .order_by("starts_at")
         )
 
+        ordered_bookings = list(
+            bookings.order_by("starts_at", "wash_box__name")
+        )
+
         return success_response(
             {
                 "station": wash_station.id,
                 "date": day.isoformat(),
+                "day_starts_at": day_start.isoformat(),
+                "day_ends_at": day_end.isoformat(),
+                "step_minutes": SCHEDULE_DEFAULT_STEP_MINUTES,
                 "boxes": [_box_payload(box) for box in boxes],
                 "shifts": [_shift_payload(shift) for shift in shifts],
                 "resource_blocks": [
                     _resource_block_payload(block)
                     for block in blocks
                 ],
-                "bookings": [
-                    _booking_payload(booking)
-                    for booking in bookings.order_by("starts_at", "wash_box__name")
-                ],
+                "bookings": [_booking_payload(booking) for booking in ordered_bookings],
+                "summary": _schedule_summary(
+                    bookings=ordered_bookings,
+                    day_start=day_start,
+                    day_end=day_end,
+                ),
             }
         )
+
+
+class ManagerBookingDetailView(APIView):
+    permission_classes = (IsManager,)
+
+    def get(self, request, pk):
+        booking = get_object_or_404(_manager_bookings_queryset(), pk=pk)
+
+        if not can_access_station(request.user, booking.wash_station):
+            return _station_access_denied_response()
+
+        return success_response(_booking_payload(booking))
 
 
 class ManagerBookingListView(APIView):
@@ -404,6 +430,45 @@ def _get_required_washers(value):
         raise BookingError("Один или несколько мойщиков не найдены.")
 
     return washers
+
+
+def _schedule_summary(*, bookings, day_start, day_end):
+    """Aggregate per-box and per-washer minutes for the requested day so the
+    frontend can render load indicators without recomputing intervals on
+    each render. Cancelled/completed/no-show bookings are excluded — they do
+    not represent actual workload."""
+
+    busy_box_minutes: dict[int, int] = defaultdict(int)
+    busy_washer_minutes: dict[int, int] = defaultdict(int)
+    active_count = 0
+
+    for booking in bookings:
+        if booking.status not in ACTIVE_BOOKING_STATUSES:
+            continue
+
+        active_count += 1
+        clipped_start = max(booking.starts_at, day_start)
+        clipped_end = min(booking.ends_at, day_end)
+        if clipped_end <= clipped_start:
+            continue
+
+        delta_minutes = int((clipped_end - clipped_start).total_seconds() // 60)
+        busy_box_minutes[booking.wash_box_id] += delta_minutes
+        for assignment in booking.assignments.all():
+            busy_washer_minutes[assignment.washer_id] += delta_minutes
+
+    return {
+        "total_bookings": len(bookings),
+        "active_bookings": active_count,
+        "busy_box_minutes": [
+            {"wash_box": box_id, "minutes": minutes}
+            for box_id, minutes in sorted(busy_box_minutes.items())
+        ],
+        "busy_washer_minutes": [
+            {"washer": washer_id, "minutes": minutes}
+            for washer_id, minutes in sorted(busy_washer_minutes.items())
+        ],
+    }
 
 
 def _box_payload(box):

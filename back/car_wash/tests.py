@@ -1315,6 +1315,87 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["boxes"][0]["id"], self.box.id)
         self.assertEqual(payload["shifts"][0]["washer"], self.washer.id)
         self.assertEqual(payload["resource_blocks"][0]["reason"], "Перерыв")
+        self.assertIn("day_starts_at", payload)
+        self.assertIn("day_ends_at", payload)
+        self.assertEqual(payload["step_minutes"], 30)
+        self.assertEqual(payload["summary"]["total_bookings"], 1)
+        self.assertEqual(payload["summary"]["active_bookings"], 1)
+        self.assertEqual(
+            payload["summary"]["busy_box_minutes"],
+            [{"wash_box": self.box.id, "minutes": 60}],
+        )
+        self.assertEqual(
+            payload["summary"]["busy_washer_minutes"],
+            [{"washer": self.washer.id, "minutes": 60}],
+        )
+
+    def test_manager_schedule_summary_excludes_cancelled_bookings(self):
+        self._login_manager()
+        active = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        cancelled_customer, cancelled_car = self._create_other_customer()
+        cancelled = Booking.objects.create(
+            customer=cancelled_customer,
+            car=cancelled_car,
+            wash_station=self.station,
+            wash_box=self.box,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 11),
+            ends_at=make_dt(self.day, 12),
+            status=Booking.Status.CANCELLED,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )
+
+        response = self.client.get(
+            reverse("api:manager:schedule"),
+            {"station": self.station.id, "date": self.day.isoformat()},
+        )
+
+        payload = response.json()["data"]
+        self.assertEqual(payload["summary"]["total_bookings"], 2)
+        self.assertEqual(payload["summary"]["active_bookings"], 1)
+        self.assertEqual(
+            payload["summary"]["busy_box_minutes"][0]["minutes"], 60
+        )
+        booking_ids = {entry["id"] for entry in payload["bookings"]}
+        self.assertEqual(booking_ids, {active.id, cancelled.id})
+
+    def test_manager_booking_detail_returns_booking(self):
+        self._login_manager()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        response = self.client.get(
+            reverse("api:manager:booking-detail", args=[booking.id]),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(payload["id"], booking.id)
+        self.assertEqual(payload["wash_box"], self.box.id)
+
+    def test_manager_booking_detail_rejects_inaccessible_station(self):
+        self._login_manager()
+        booking = self._create_booking_without_manager_station_access()
+
+        response = self.client.get(
+            reverse("api:manager:booking-detail", args=[booking.id]),
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["code"], "station_access_denied")
 
     def test_manager_schedule_api_validates_required_query_params(self):
         self._login_manager()
