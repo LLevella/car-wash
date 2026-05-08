@@ -22,6 +22,8 @@ htmlcov/
 front/node_modules/
 front/dist/
 front/coverage/
+front/playwright-report/
+front/test-results/
 
 # Editor and OS files
 .idea/
