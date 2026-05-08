@@ -124,6 +124,30 @@ beforeEach(() => {
         return jsonResponse([bookingFixture()]);
       }
 
+      if (url.includes("/api/manager/shifts/") && method === "POST") {
+        return jsonResponse(shiftFixture(), 201);
+      }
+
+      if (url.includes("/api/manager/shifts/")) {
+        return jsonResponse([shiftFixture()]);
+      }
+
+      if (url.includes("/api/manager/resource-blocks/") && method === "POST") {
+        return jsonResponse({
+          id: 1,
+          wash_station: 1,
+          wash_box: null,
+          washer: null,
+          starts_at: "2099-05-08T12:00:00",
+          ends_at: "2099-05-08T13:00:00",
+          reason: "Технический перерыв",
+        });
+      }
+
+      if (url.includes("/api/manager/resource-blocks/")) {
+        return jsonResponse([]);
+      }
+
       if (url.includes("/api/car-wash/bookings/1/cancel/")) {
         return jsonResponse({ ...bookingFixture(), status: "cancelled" });
       }
@@ -158,6 +182,18 @@ function jsonResponse(data: unknown, status = 200) {
     headers: { "Content-Type": "application/json" },
     status,
   });
+}
+
+function shiftFixture() {
+  return {
+    id: 1,
+    washer: 1,
+    washer_name: "Alex Washer",
+    wash_station: 1,
+    starts_at: "2099-05-08T09:00:00",
+    ends_at: "2099-05-08T18:00:00",
+    is_active: true,
+  };
 }
 
 function bookingFixture() {

@@ -20,6 +20,7 @@ import {
   stationLabel,
   today,
   uniqueShiftWashers,
+  validateTimeRange,
 } from "./resourceHelpers";
 
 type ResourceTarget = "station" | "box" | "washer";
@@ -92,6 +93,11 @@ export function ManagerResourceBlocksPage() {
         throw new Error("Выберите станцию.");
       }
 
+      const timeError = validateTimeRange(startsAt, endsAt);
+      if (timeError) {
+        throw new Error(timeError);
+      }
+
       await ensureCsrfCookie();
       return createManagerResourceBlock({
         ends_at: buildDateTime(date, endsAt),
@@ -113,10 +119,12 @@ export function ManagerResourceBlocksPage() {
 
   const createError =
     createMutation.error instanceof Error ? createMutation.error.message : null;
+  const timeError = validateTimeRange(startsAt, endsAt);
   const blocks = blocksQuery.data ?? [];
   const stations = stationsQuery.data ?? [];
   const createDisabled =
     createMutation.isPending ||
+    Boolean(timeError) ||
     (target === "box" && !boxId) ||
     (target === "washer" && !washerId);
 
@@ -215,6 +223,7 @@ export function ManagerResourceBlocksPage() {
             Создать блокировку
           </Button>
         </div>
+        {timeError ? <div className="field__error">{timeError}</div> : null}
         {createError ? <div className="field__error">{createError}</div> : null}
       </section>
       {blocksQuery.isLoading ? (

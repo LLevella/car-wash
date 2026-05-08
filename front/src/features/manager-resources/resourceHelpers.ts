@@ -10,6 +10,18 @@ export function buildDateTime(day: string, time: string) {
   return `${day}T${time}:00`;
 }
 
+export function validateTimeRange(startsAt: string, endsAt: string) {
+  if (!startsAt || !endsAt) {
+    return "Заполните начало и окончание интервала.";
+  }
+
+  if (startsAt >= endsAt) {
+    return "Окончание должно быть позже начала.";
+  }
+
+  return null;
+}
+
 export function formatDate(value: string) {
   return new Intl.DateTimeFormat("ru-RU", {
     day: "2-digit",

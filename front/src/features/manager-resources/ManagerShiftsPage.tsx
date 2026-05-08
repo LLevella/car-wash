@@ -15,6 +15,7 @@ import {
   stationLabel,
   today,
   uniqueShiftWashers,
+  validateTimeRange,
 } from "./resourceHelpers";
 
 export function ManagerShiftsPage() {
@@ -69,6 +70,11 @@ export function ManagerShiftsPage() {
         throw new Error("Выберите станцию и мойщика.");
       }
 
+      const timeError = validateTimeRange(startsAt, endsAt);
+      if (timeError) {
+        throw new Error(timeError);
+      }
+
       await ensureCsrfCookie();
       return createManagerShift({
         ends_at: buildDateTime(date, endsAt),
@@ -86,6 +92,7 @@ export function ManagerShiftsPage() {
 
   const createError =
     createMutation.error instanceof Error ? createMutation.error.message : null;
+  const timeError = validateTimeRange(startsAt, endsAt);
   const shifts = shiftsQuery.data ?? [];
   const stations = stationsQuery.data ?? [];
 
@@ -156,13 +163,14 @@ export function ManagerShiftsPage() {
         </label>
         <div className="form-actions">
           <Button
-            disabled={!washerId || createMutation.isPending}
+            disabled={!washerId || createMutation.isPending || Boolean(timeError)}
             icon={<Plus size={18} />}
             onClick={() => createMutation.mutate()}
           >
             Создать смену
           </Button>
         </div>
+        {timeError ? <div className="field__error">{timeError}</div> : null}
         {createError ? <div className="field__error">{createError}</div> : null}
       </section>
       {shiftsQuery.isLoading ? (

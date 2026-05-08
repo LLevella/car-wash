@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -9,6 +9,8 @@ import { queryClient } from "../app/queryClient";
 import { BookingPage } from "../features/booking/BookingPage";
 import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerBookingDetailsPage";
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
+import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
+import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 
 function renderRoute(path = "/book") {
@@ -30,6 +32,11 @@ function renderRoute(path = "/book") {
             element: <ManagerBookingDetailsPage />,
           },
           { path: "/manager/schedule", element: <ManagerSchedulePage /> },
+          { path: "/manager/shifts", element: <ManagerShiftsPage /> },
+          {
+            path: "/manager/resource-blocks",
+            element: <ManagerResourceBlocksPage />,
+          },
         ],
       },
     ],
@@ -129,5 +136,29 @@ describe("App", () => {
     expect(
       await screen.findByRole("dialog", { name: "Назначение заказа #1" }),
     ).toBeInTheDocument();
+  });
+
+  it("validates manager shift time range", async () => {
+    renderRoute("/manager/shifts");
+
+    await screen.findByRole("heading", { level: 1, name: "Смены" });
+    fireEvent.change(screen.getByLabelText("Окончание"), {
+      target: { value: "08:00" },
+    });
+
+    expect(screen.getByText("Окончание должно быть позже начала.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Создать смену" })).toBeDisabled();
+  });
+
+  it("validates resource block time range", async () => {
+    renderRoute("/manager/resource-blocks");
+
+    await screen.findByRole("heading", { level: 1, name: "Блокировки" });
+    fireEvent.change(screen.getByLabelText("Окончание"), {
+      target: { value: "11:00" },
+    });
+
+    expect(screen.getByText("Окончание должно быть позже начала.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Создать блокировку" })).toBeDisabled();
   });
 });
