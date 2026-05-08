@@ -16,6 +16,10 @@ export type CreateBookingPayload = {
   starts_at: string;
 };
 
+export type RescheduleBookingPayload = {
+  starts_at: string;
+};
+
 export function getAvailability(params: AvailabilityParams) {
   return apiRequest<AvailabilitySlot[]>(
     `/api/car-wash/availability/?${new URLSearchParams(
@@ -38,6 +42,13 @@ export function createBooking(payload: CreateBookingPayload) {
 export function cancelBooking(id: number) {
   return apiRequest<Booking>(`/api/car-wash/bookings/${id}/cancel/`, {
     method: "PATCH",
+  });
+}
+
+export function rescheduleBooking(id: number, payload: RescheduleBookingPayload) {
+  return apiRequest<Booking>(`/api/car-wash/bookings/${id}/reschedule/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 

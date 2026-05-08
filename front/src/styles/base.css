@@ -438,10 +438,17 @@ a {
 
 .booking-card {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(320px, 1.3fr);
+  grid-template-columns: minmax(180px, 1fr) auto minmax(300px, 1.3fr) auto;
   gap: var(--space-4);
   align-items: center;
   padding: var(--space-5);
+}
+
+.booking-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .booking-card h2,
@@ -457,6 +464,60 @@ a {
 .booking-card p {
   margin-top: var(--space-1);
   color: var(--color-muted);
+}
+
+.booking-detail {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.booking-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.booking-detail__header h2,
+.booking-detail__header p {
+  margin: 0;
+}
+
+.booking-detail__header h2 {
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.booking-detail__header p {
+  margin-top: var(--space-1);
+  color: var(--color-muted);
+}
+
+.booking-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-line);
+}
+
+.booking-detail__grid dt {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.booking-detail__grid dd {
+  margin: var(--space-1) 0 0;
+  font-weight: 800;
+}
+
+.booking-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
 }
 
 .schedule-wrap,
@@ -621,6 +682,56 @@ a {
   letter-spacing: 0;
 }
 
+.modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.reschedule-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.reschedule-form__slots {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.reschedule-form h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.assignment-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.checkbox-group {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-small);
+}
+
+.checkbox-group legend {
+  padding: 0 var(--space-1);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-4);
+}
+
 @media (max-width: 920px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -664,6 +775,7 @@ a {
   .booking-flow,
   .form-grid,
   .booking-card,
+  .booking-detail__grid,
   .summary dl,
   .booking-card__meta {
     grid-template-columns: 1fr;
@@ -671,5 +783,19 @@ a {
 
   .slot-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .checkbox-list {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-card__actions,
+  .booking-detail__actions,
+  .modal__actions {
+    justify-content: flex-start;
+  }
+
+  .booking-detail__header {
+    display: grid;
   }
 }

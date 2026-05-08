@@ -4,8 +4,9 @@ import { afterEach, beforeEach, vi } from "vitest";
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
+      const method = init?.method?.toUpperCase() ?? "GET";
 
       if (url.includes("/api/auth/me/")) {
         return jsonResponse({
@@ -85,8 +86,8 @@ beforeEach(() => {
       if (url.includes("/api/car-wash/availability/")) {
         return jsonResponse([
           {
-            starts_at: "2026-05-06T10:30:00",
-            ends_at: "2026-05-06T11:15:00",
+            starts_at: "2099-05-08T10:30:00",
+            ends_at: "2099-05-08T11:15:00",
             duration_minutes: 45,
             boxes: [{ id: 1, name: "Bay 1" }],
             washers: [{ id: 1, name: "Alex Washer" }],
@@ -94,8 +95,53 @@ beforeEach(() => {
         ]);
       }
 
+      if (url.includes("/api/manager/schedule/")) {
+        return jsonResponse({
+          station: 1,
+          date: "2099-05-08",
+          boxes: [{ id: 1, name: "Bay 1", is_active: true }],
+          shifts: [
+            {
+              id: 1,
+              washer: 1,
+              washer_name: "Alex Washer",
+              wash_station: 1,
+              starts_at: "2099-05-08T09:00:00",
+              ends_at: "2099-05-08T18:00:00",
+              is_active: true,
+            },
+          ],
+          resource_blocks: [],
+          bookings: [bookingFixture()],
+        });
+      }
+
+      if (url.includes("/api/manager/bookings/1/assign/")) {
+        return jsonResponse(bookingFixture());
+      }
+
+      if (url.includes("/api/manager/bookings/")) {
+        return jsonResponse([bookingFixture()]);
+      }
+
+      if (url.includes("/api/car-wash/bookings/1/cancel/")) {
+        return jsonResponse({ ...bookingFixture(), status: "cancelled" });
+      }
+
+      if (url.includes("/api/car-wash/bookings/1/reschedule/")) {
+        return jsonResponse({
+          ...bookingFixture(),
+          starts_at: "2099-05-08T10:30:00",
+          ends_at: "2099-05-08T11:15:00",
+        });
+      }
+
+      if (url.includes("/api/car-wash/bookings/") && method === "POST") {
+        return jsonResponse(bookingFixture(), 201);
+      }
+
       if (url.includes("/api/car-wash/bookings/")) {
-        return jsonResponse([]);
+        return jsonResponse([bookingFixture()]);
       }
 
       return jsonResponse(null);
@@ -112,4 +158,22 @@ function jsonResponse(data: unknown, status = 200) {
     headers: { "Content-Type": "application/json" },
     status,
   });
+}
+
+function bookingFixture() {
+  return {
+    id: 1,
+    customer: 1,
+    car: 1,
+    wash_station: 1,
+    wash_box: 1,
+    wash_type: 1,
+    starts_at: "2099-05-08T09:00:00",
+    ends_at: "2099-05-08T09:45:00",
+    status: "pending",
+    cost: "1200.00",
+    down_payment: "300.00",
+    residual: "900.00",
+    washers: [{ id: 1, name: "Alex Washer", role: "main" }],
+  };
 }

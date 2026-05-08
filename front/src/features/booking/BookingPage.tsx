@@ -1,9 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Check, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  Ban,
+  CalendarClock,
+  CalendarDays,
+  Check,
+  Eye,
+  RefreshCw,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
-import { createBooking, getAvailability, getBookings } from "../../api/bookings";
+import {
+  cancelBooking,
+  createBooking,
+  getAvailability,
+  getBookings,
+  rescheduleBooking,
+} from "../../api/bookings";
 import {
   getCurrentCustomer,
   getCustomerCars,
@@ -11,6 +26,7 @@ import {
   getWashTypes,
 } from "../../api/dictionaries";
 import type {
+  AvailabilitySlot,
   Booking,
   CurrentCustomer,
   CustomerCar,
@@ -19,12 +35,13 @@ import type {
 } from "../../api/types";
 import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
+import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
 import { useCurrentUser } from "../auth/useAuth";
 
 type BookingPageProps = {
-  view?: "form" | "bookings";
+  view?: "form" | "bookings" | "details";
 };
 
 type BookingFilter = "upcoming" | "past" | "cancelled";
@@ -50,6 +67,15 @@ export function BookingPage({ view = "form" }: BookingPageProps) {
     );
   }
 
+  if (view === "details") {
+    return (
+      <CustomerBookingDetailsView
+        stations={stationsQuery.data ?? []}
+        washTypes={washTypesQuery.data ?? []}
+      />
+    );
+  }
+
   return (
     <BookingForm
       stations={stationsQuery.data ?? []}
@@ -67,15 +93,85 @@ function CustomerBookingsView({
   stations: Station[];
   washTypes: WashType[];
 }) {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<BookingFilter>("upcoming");
+  const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
   const bookingsQuery = useQuery({
     queryKey: ["bookings", "customer"],
     queryFn: getBookings,
+  });
+  const carsQuery = useQuery({
+    queryKey: ["customers", "cars"],
+    queryFn: getCustomerCars,
+  });
+  const cancelMutation = useMutation({
+    mutationFn: async (booking: Booking) => {
+      if (!canChangeBooking(booking)) {
+        throw new Error("Эту запись уже нельзя отменить.");
+      }
+
+      await ensureCsrfCookie();
+      return cancelBooking(booking.id);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({
+      booking,
+      startsAt,
+    }: {
+      booking: Booking;
+      startsAt: string;
+    }) => {
+      if (!canChangeBooking(booking)) {
+        throw new Error("Эту запись уже нельзя перенести.");
+      }
+
+      await ensureCsrfCookie();
+      return rescheduleBooking(booking.id, { starts_at: startsAt });
+    },
+    onSuccess: () => {
+      setReschedulingBooking(null);
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
   });
   const bookings = useMemo(
     () => filterBookings(bookingsQuery.data ?? [], filter),
     [bookingsQuery.data, filter],
   );
+  const cars = carsQuery.data ?? [];
+  const cancelError =
+    cancelMutation.error instanceof Error ? cancelMutation.error.message : null;
+  const rescheduleError =
+    rescheduleMutation.error instanceof Error ? rescheduleMutation.error.message : null;
+
+  function handleCancel(booking: Booking) {
+    cancelMutation.reset();
+
+    if (!window.confirm("Отменить эту запись?")) {
+      return;
+    }
+
+    cancelMutation.mutate(booking);
+  }
+
+  function openRescheduleModal(booking: Booking) {
+    rescheduleMutation.reset();
+    setReschedulingBooking(booking);
+  }
+
+  function closeRescheduleModal() {
+    if (rescheduleMutation.isPending) {
+      return;
+    }
+
+    rescheduleMutation.reset();
+    setReschedulingBooking(null);
+  }
 
   return (
     <section className="page">
@@ -132,10 +228,445 @@ function CustomerBookingsView({
                 <dd>{formatMoney(booking.cost)}</dd>
               </div>
             </dl>
+            <div className="booking-card__actions">
+              <Link
+                className="button button--secondary"
+                to={`/my/bookings/${booking.id}`}
+              >
+                <Eye size={18} />
+                <span>Детали</span>
+              </Link>
+              <Button
+                disabled={
+                  !canChangeBooking(booking) ||
+                  carsQuery.isLoading ||
+                  !bookingCar(cars, booking)
+                }
+                icon={<CalendarClock size={18} />}
+                onClick={() => openRescheduleModal(booking)}
+                variant="secondary"
+              >
+                Перенести
+              </Button>
+              <Button
+                disabled={
+                  !canChangeBooking(booking) ||
+                  (cancelMutation.isPending &&
+                    cancelMutation.variables?.id === booking.id)
+                }
+                icon={<Ban size={18} />}
+                onClick={() => handleCancel(booking)}
+                variant="danger"
+              >
+                Отменить
+              </Button>
+            </div>
           </article>
         ))}
+        {cancelError ? <div className="panel field__error">{cancelError}</div> : null}
       </div>
+      <RescheduleModal
+        booking={reschedulingBooking}
+        cars={cars}
+        error={rescheduleError}
+        onClose={closeRescheduleModal}
+        onSubmit={(startsAt) => {
+          if (reschedulingBooking) {
+            rescheduleMutation.mutate({ booking: reschedulingBooking, startsAt });
+          }
+        }}
+        pending={rescheduleMutation.isPending}
+        stations={stations}
+        washTypes={washTypes}
+      />
     </section>
+  );
+}
+
+function CustomerBookingDetailsView({
+  stations,
+  washTypes,
+}: {
+  stations: Station[];
+  washTypes: WashType[];
+}) {
+  const { bookingId } = useParams();
+  const queryClient = useQueryClient();
+  const [reschedulingBooking, setReschedulingBooking] = useState<Booking | null>(null);
+  const bookingsQuery = useQuery({
+    queryKey: ["bookings", "customer"],
+    queryFn: getBookings,
+  });
+  const carsQuery = useQuery({
+    queryKey: ["customers", "cars"],
+    queryFn: getCustomerCars,
+  });
+  const booking = useMemo(
+    () =>
+      (bookingsQuery.data ?? []).find(
+        (candidate) => String(candidate.id) === bookingId,
+      ),
+    [bookingId, bookingsQuery.data],
+  );
+  const cars = carsQuery.data ?? [];
+  const car = booking ? bookingCar(cars, booking) : undefined;
+  const cancelMutation = useMutation({
+    mutationFn: async (target: Booking) => {
+      if (!canChangeBooking(target)) {
+        throw new Error("Эту запись уже нельзя отменить.");
+      }
+
+      await ensureCsrfCookie();
+      return cancelBooking(target.id);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+  const rescheduleMutation = useMutation({
+    mutationFn: async ({ target, startsAt }: { target: Booking; startsAt: string }) => {
+      if (!canChangeBooking(target)) {
+        throw new Error("Эту запись уже нельзя перенести.");
+      }
+
+      await ensureCsrfCookie();
+      return rescheduleBooking(target.id, { starts_at: startsAt });
+    },
+    onSuccess: () => {
+      setReschedulingBooking(null);
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
+  const cancelError =
+    cancelMutation.error instanceof Error ? cancelMutation.error.message : null;
+  const rescheduleError =
+    rescheduleMutation.error instanceof Error ? rescheduleMutation.error.message : null;
+
+  function handleCancel() {
+    if (!booking) {
+      return;
+    }
+
+    cancelMutation.reset();
+
+    if (!window.confirm("Отменить эту запись?")) {
+      return;
+    }
+
+    cancelMutation.mutate(booking);
+  }
+
+  function closeRescheduleModal() {
+    if (rescheduleMutation.isPending) {
+      return;
+    }
+
+    rescheduleMutation.reset();
+    setReschedulingBooking(null);
+  }
+
+  return (
+    <section className="page">
+      <Toolbar
+        actions={
+          <Link className="button button--secondary" to="/my/bookings">
+            <ArrowLeft size={18} />
+            <span>К списку</span>
+          </Link>
+        }
+        title={booking ? `Запись #${booking.id}` : "Детали записи"}
+      />
+      {bookingsQuery.isLoading ? (
+        <div className="panel state-panel">Загрузка записи...</div>
+      ) : null}
+      {bookingsQuery.isError ? (
+        <div className="panel state-panel">Не удалось загрузить запись.</div>
+      ) : null}
+      {!bookingsQuery.isLoading && !bookingsQuery.isError && !booking ? (
+        <div className="panel state-panel">Запись не найдена.</div>
+      ) : null}
+      {booking ? (
+        <article className="panel booking-detail">
+          <div className="booking-detail__header">
+            <div>
+              <h2>{stationName(stations, booking.wash_station)}</h2>
+              <p>{washTypeName(washTypes, booking.wash_type)}</p>
+            </div>
+            <StatusBadge status={booking.status} />
+          </div>
+          <dl className="booking-detail__grid">
+            <div>
+              <dt>Дата</dt>
+              <dd>{formatDate(booking.starts_at)}</dd>
+            </div>
+            <div>
+              <dt>Время</dt>
+              <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
+            </div>
+            <div>
+              <dt>Автомобиль</dt>
+              <dd>
+                {car ? `${car.number}, ${carTypeName(car)}` : `Авто ${booking.car}`}
+              </dd>
+            </div>
+            <div>
+              <dt>Бокс</dt>
+              <dd>{bookingBoxName(booking)}</dd>
+            </div>
+            <div>
+              <dt>Стоимость</dt>
+              <dd>{formatMoney(booking.cost)}</dd>
+            </div>
+            <div>
+              <dt>Аванс</dt>
+              <dd>{formatMoney(booking.down_payment)}</dd>
+            </div>
+            <div>
+              <dt>Остаток</dt>
+              <dd>{formatMoney(booking.residual)}</dd>
+            </div>
+            <div>
+              <dt>Мойщики</dt>
+              <dd>{bookingWashers(booking)}</dd>
+            </div>
+          </dl>
+          {cancelError ? <div className="field__error">{cancelError}</div> : null}
+          <div className="booking-detail__actions">
+            <Button
+              disabled={!canChangeBooking(booking) || carsQuery.isLoading || !car}
+              icon={<CalendarClock size={18} />}
+              onClick={() => {
+                rescheduleMutation.reset();
+                setReschedulingBooking(booking);
+              }}
+              variant="secondary"
+            >
+              Перенести
+            </Button>
+            <Button
+              disabled={!canChangeBooking(booking) || cancelMutation.isPending}
+              icon={<Ban size={18} />}
+              onClick={handleCancel}
+              variant="danger"
+            >
+              Отменить
+            </Button>
+          </div>
+        </article>
+      ) : null}
+      <RescheduleModal
+        booking={reschedulingBooking}
+        cars={cars}
+        error={rescheduleError}
+        onClose={closeRescheduleModal}
+        onSubmit={(startsAt) => {
+          if (reschedulingBooking) {
+            rescheduleMutation.mutate({
+              startsAt,
+              target: reschedulingBooking,
+            });
+          }
+        }}
+        pending={rescheduleMutation.isPending}
+        stations={stations}
+        washTypes={washTypes}
+      />
+    </section>
+  );
+}
+
+function RescheduleModal({
+  booking,
+  cars,
+  error,
+  onClose,
+  onSubmit,
+  pending,
+  stations,
+  washTypes,
+}: {
+  booking: Booking | null;
+  cars: CustomerCar[];
+  error: string | null;
+  onClose: () => void;
+  onSubmit: (startsAt: string) => void;
+  pending: boolean;
+  stations: Station[];
+  washTypes: WashType[];
+}) {
+  const [date, setDate] = useState(today);
+  const [selectedSlotStart, setSelectedSlotStart] = useState<string | null>(null);
+  const car = booking ? bookingCar(cars, booking) : undefined;
+  const selectedCarTypeId = carTypeId(car);
+
+  useEffect(() => {
+    if (booking) {
+      setDate(booking.starts_at.slice(0, 10));
+      setSelectedSlotStart(null);
+    }
+  }, [booking]);
+
+  const availabilityQuery = useQuery({
+    queryKey: [
+      "availability",
+      "reschedule",
+      booking?.id,
+      booking?.wash_station,
+      selectedCarTypeId,
+      booking?.wash_type,
+      date,
+    ],
+    queryFn: () =>
+      getAvailability({
+        car_type: selectedCarTypeId as number,
+        date,
+        station: booking?.wash_station as number,
+        wash_type: booking?.wash_type as number,
+      }),
+    enabled:
+      Boolean(booking) &&
+      Boolean(selectedCarTypeId) &&
+      Boolean(booking?.wash_station) &&
+      Boolean(booking?.wash_type) &&
+      Boolean(date),
+  });
+  const slots = useMemo(() => availabilityQuery.data ?? [], [availabilityQuery.data]);
+  const selectedSlot = slots.find((slot) => slot.starts_at === selectedSlotStart);
+  const availabilityError =
+    availabilityQuery.error instanceof Error ? availabilityQuery.error.message : null;
+
+  useEffect(() => {
+    if (!slots.length) {
+      setSelectedSlotStart(null);
+      return;
+    }
+
+    if (!slots.some((slot) => slot.starts_at === selectedSlotStart)) {
+      setSelectedSlotStart(slots[0].starts_at);
+    }
+  }, [selectedSlotStart, slots]);
+
+  return (
+    <Modal
+      onClose={onClose}
+      open={Boolean(booking)}
+      title={booking ? `Перенос записи #${booking.id}` : "Перенос записи"}
+    >
+      {booking ? (
+        <div className="reschedule-form">
+          <dl className="booking-card__meta">
+            <div>
+              <dt>Станция</dt>
+              <dd>{stationName(stations, booking.wash_station)}</dd>
+            </div>
+            <div>
+              <dt>Услуга</dt>
+              <dd>{washTypeName(washTypes, booking.wash_type)}</dd>
+            </div>
+            <div>
+              <dt>Сейчас</dt>
+              <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
+            </div>
+          </dl>
+          <InputField
+            label="Новая дата"
+            onChange={(event) => setDate(event.target.value)}
+            type="date"
+            value={date}
+          />
+          <section className="reschedule-form__slots" aria-label="Новые слоты">
+            <div className="slot-panel__header">
+              <CalendarDays size={20} />
+              <h3>Свободное время</h3>
+            </div>
+            {!car ? (
+              <div className="state-panel">
+                Не удалось определить автомобиль для этой записи.
+              </div>
+            ) : null}
+            {availabilityQuery.isFetching ? (
+              <div className="state-panel">Ищем свободные интервалы...</div>
+            ) : null}
+            {availabilityError ? (
+              <div className="state-panel">{availabilityError}</div>
+            ) : null}
+            {!availabilityQuery.isFetching &&
+            !availabilityError &&
+            car &&
+            !slots.length ? (
+              <div className="state-panel">Нет свободных слотов на выбранную дату.</div>
+            ) : null}
+            {slots.length ? (
+              <div className="slot-grid">
+                {slots.slice(0, 24).map((slot) => (
+                  <SlotButton
+                    key={slot.starts_at}
+                    onSelect={setSelectedSlotStart}
+                    selected={slot.starts_at === selectedSlotStart}
+                    slot={slot}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </section>
+          <div className="summary">
+            <dl>
+              <div>
+                <dt>Новая дата</dt>
+                <dd>{selectedSlot ? formatDate(selectedSlot.starts_at) : "-"}</dd>
+              </div>
+              <div>
+                <dt>Время</dt>
+                <dd>
+                  {selectedSlot
+                    ? formatTimeRange(selectedSlot.starts_at, selectedSlot.ends_at)
+                    : "-"}
+                </dd>
+              </div>
+              <div>
+                <dt>Длительность</dt>
+                <dd>{selectedSlot ? `${selectedSlot.duration_minutes} мин` : "-"}</dd>
+              </div>
+            </dl>
+            {error ? <div className="field__error">{error}</div> : null}
+            <div className="modal__actions">
+              <Button onClick={onClose} variant="secondary">
+                Закрыть
+              </Button>
+              <Button
+                disabled={!selectedSlot || pending}
+                icon={<CalendarClock size={18} />}
+                onClick={() => selectedSlot && onSubmit(selectedSlot.starts_at)}
+              >
+                Перенести запись
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </Modal>
+  );
+}
+
+function SlotButton({
+  onSelect,
+  selected,
+  slot,
+}: {
+  onSelect: (startsAt: string) => void;
+  selected: boolean;
+  slot: AvailabilitySlot;
+}) {
+  return (
+    <button
+      className={selected ? "slot slot--active" : "slot"}
+      onClick={() => onSelect(slot.starts_at)}
+      type="button"
+    >
+      {formatTime(slot.starts_at)}
+    </button>
   );
 }
 
@@ -409,6 +940,29 @@ function filterBookings(bookings: Booking[], filter: BookingFilter) {
     (booking) =>
       booking.status !== "cancelled" && new Date(booking.ends_at).getTime() >= now,
   );
+}
+
+function canChangeBooking(booking: Booking) {
+  return (
+    (booking.status === "pending" || booking.status === "confirmed") &&
+    new Date(booking.starts_at).getTime() > Date.now()
+  );
+}
+
+function bookingCar(cars: CustomerCar[], booking: Booking) {
+  return cars.find((car) => car.id === booking.car);
+}
+
+function bookingBoxName(booking: Booking) {
+  return booking.wash_box ? `Бокс ${booking.wash_box}` : "Будет назначен";
+}
+
+function bookingWashers(booking: Booking) {
+  if (!booking.washers.length) {
+    return "Будут назначены";
+  }
+
+  return booking.washers.map((washer) => washer.name).join(", ");
 }
 
 function carTypeId(car: CustomerCar | undefined) {

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { ensureCsrfCookie } from "../../api/auth";
 import { getStations, getWashTypes } from "../../api/dictionaries";
 import {
+  assignBooking,
   getManagerBookings,
   getManagerSchedule,
   updateManagerBookingStatus,
@@ -12,6 +13,7 @@ import {
 import type { Booking, BookingStatus, Station, WashType } from "../../api/types";
 import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
+import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
 
@@ -45,6 +47,7 @@ export function ManagerBookingsPage() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [boxId, setBoxId] = useState<number | null>(null);
   const [washerId, setWasherId] = useState<number | null>(null);
+  const [assigningBooking, setAssigningBooking] = useState<Booking | null>(null);
 
   const stationsQuery = useQuery({
     queryKey: ["dictionaries", "stations"],
@@ -100,6 +103,26 @@ export function ManagerBookingsPage() {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
     },
   });
+  const assignMutation = useMutation({
+    mutationFn: async (payload: {
+      bookingId: number;
+      washBox: number | null;
+      washers: number[];
+    }) => {
+      await ensureCsrfCookie();
+      return assignBooking(payload.bookingId, {
+        wash_box: payload.washBox,
+        washers: payload.washers,
+      });
+    },
+    onSuccess: () => {
+      setAssigningBooking(null);
+      void queryClient.invalidateQueries({ queryKey: ["manager", "bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["manager", "schedule"] });
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
 
   const stations = stationsQuery.data ?? [];
   const washTypes = washTypesQuery.data ?? [];
@@ -109,6 +132,17 @@ export function ManagerBookingsPage() {
     () => uniqueWashers(scheduleQuery.data?.shifts ?? [], bookings),
     [bookings, scheduleQuery.data?.shifts],
   );
+  const assignError =
+    assignMutation.error instanceof Error ? assignMutation.error.message : null;
+
+  function closeAssignModal() {
+    if (assignMutation.isPending) {
+      return;
+    }
+
+    assignMutation.reset();
+    setAssigningBooking(null);
+  }
 
   return (
     <section className="page">
@@ -209,6 +243,10 @@ export function ManagerBookingsPage() {
         <BookingsTable
           bookings={bookings}
           boxes={boxes}
+          onAssign={(booking) => {
+            assignMutation.reset();
+            setAssigningBooking(booking);
+          }}
           onStatusChange={(bookingId, nextStatus) =>
             statusMutation.mutate({ bookingId, status: nextStatus })
           }
@@ -216,6 +254,22 @@ export function ManagerBookingsPage() {
           washTypes={washTypes}
         />
       ) : null}
+      <AssignmentModal
+        booking={assigningBooking}
+        boxes={boxes}
+        error={assignError}
+        onClose={closeAssignModal}
+        onSubmit={(payload) => {
+          if (assigningBooking) {
+            assignMutation.mutate({
+              bookingId: assigningBooking.id,
+              ...payload,
+            });
+          }
+        }}
+        pending={assignMutation.isPending}
+        washers={washers}
+      />
     </section>
   );
 }
@@ -223,12 +277,14 @@ export function ManagerBookingsPage() {
 function BookingsTable({
   bookings,
   boxes,
+  onAssign,
   onStatusChange,
   statusPending,
   washTypes,
 }: {
   bookings: Booking[];
   boxes: Array<{ id: number; name: string }>;
+  onAssign: (booking: Booking) => void;
   onStatusChange: (bookingId: number, status: BookingStatus) => void;
   statusPending: boolean;
   washTypes: WashType[];
@@ -245,6 +301,7 @@ function BookingsTable({
             <th>Мойщик</th>
             <th>Статус</th>
             <th>Сумма</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -275,11 +332,138 @@ function BookingsTable({
                 </div>
               </td>
               <td>{formatMoney(booking.cost)}</td>
+              <td>
+                <Button
+                  icon={<UserCheck size={18} />}
+                  onClick={() => onAssign(booking)}
+                  variant="secondary"
+                >
+                  Назначить
+                </Button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function AssignmentModal({
+  booking,
+  boxes,
+  error,
+  onClose,
+  onSubmit,
+  pending,
+  washers,
+}: {
+  booking: Booking | null;
+  boxes: Array<{ id: number; name: string }>;
+  error: string | null;
+  onClose: () => void;
+  onSubmit: (payload: { washBox: number | null; washers: number[] }) => void;
+  pending: boolean;
+  washers: Array<{ id: number; name: string }>;
+}) {
+  const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null);
+  const [selectedWasherIds, setSelectedWasherIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (booking) {
+      setSelectedBoxId(booking.wash_box);
+      setSelectedWasherIds(booking.washers.map((washer) => washer.id));
+    }
+  }, [booking]);
+
+  function toggleWasher(washerId: number) {
+    setSelectedWasherIds((current) =>
+      current.includes(washerId)
+        ? current.filter((id) => id !== washerId)
+        : [...current, washerId],
+    );
+  }
+
+  return (
+    <Modal
+      onClose={onClose}
+      open={Boolean(booking)}
+      title={booking ? `Назначение заказа #${booking.id}` : "Назначение заказа"}
+    >
+      {booking ? (
+        <div className="assignment-form">
+          <dl className="booking-card__meta">
+            <div>
+              <dt>Время</dt>
+              <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
+            </div>
+            <div>
+              <dt>Текущий бокс</dt>
+              <dd>{boxName(boxes, booking.wash_box)}</dd>
+            </div>
+            <div>
+              <dt>Мойщики</dt>
+              <dd>{washerNames(booking)}</dd>
+            </div>
+          </dl>
+          <SelectField
+            label="Бокс"
+            onChange={(event) =>
+              setSelectedBoxId(event.target.value ? Number(event.target.value) : null)
+            }
+            value={selectedBoxId ?? ""}
+          >
+            <option value="">Авто-подбор</option>
+            {boxes.map((box) => (
+              <option key={box.id} value={box.id}>
+                {box.name}
+              </option>
+            ))}
+          </SelectField>
+          <fieldset className="checkbox-group">
+            <legend>Мойщики</legend>
+            <div className="checkbox-list">
+              {washers.map((washer) => (
+                <label className="checkbox-row" key={washer.id}>
+                  <input
+                    checked={selectedWasherIds.includes(washer.id)}
+                    onChange={() => toggleWasher(washer.id)}
+                    type="checkbox"
+                  />
+                  <span>{washer.name}</span>
+                </label>
+              ))}
+              {!washers.length ? (
+                <div className="state-panel">
+                  Нет смен на выбранную дату. Можно оставить авто-подбор.
+                </div>
+              ) : null}
+            </div>
+          </fieldset>
+          <p className="field__hint">
+            Если не выбрать бокс или мойщика, backend подберет свободный ресурс.
+          </p>
+          {error ? <div className="field__error">{error}</div> : null}
+          <div className="modal__actions">
+            <Button onClick={onClose} variant="secondary">
+              Закрыть
+            </Button>
+            <Button
+              disabled={pending}
+              icon={<UserCheck size={18} />}
+              onClick={() =>
+                onSubmit({
+                  washBox: selectedBoxId,
+                  washers: selectedWasherIds,
+                })
+              }
+            >
+              Сохранить назначение
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </Modal>
   );
 }
 

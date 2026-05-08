@@ -33,6 +33,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: "/my/bookings/:bookingId",
+        element: (
+          <ProtectedRoute roles={["customer"]}>
+            <BookingPage view="details" />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "/manager/schedule",
         element: (
           <ProtectedRoute roles={["manager", "admin"]}>
