@@ -5,6 +5,7 @@ import { HomeRedirect } from "../features/auth/HomeRedirect";
 import { LoginPage } from "../features/auth/LoginPage";
 import { ProtectedRoute } from "../features/auth/ProtectedRoute";
 import { BookingPage } from "../features/booking/BookingPage";
+import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerBookingDetailsPage";
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
 import { ManagerResourceBlocksPage } from "../features/manager-resources/ManagerResourceBlocksPage";
 import { ManagerShiftsPage } from "../features/manager-resources/ManagerShiftsPage";
@@ -53,6 +54,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute roles={["manager", "admin"]}>
             <ManagerBookingsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/manager/bookings/:bookingId",
+        element: (
+          <ProtectedRoute roles={["manager", "admin"]}>
+            <ManagerBookingDetailsPage />
           </ProtectedRoute>
         ),
       },

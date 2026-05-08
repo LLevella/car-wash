@@ -7,7 +7,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "../app/App";
 import { queryClient } from "../app/queryClient";
 import { BookingPage } from "../features/booking/BookingPage";
+import { ManagerBookingDetailsPage } from "../features/manager-bookings/ManagerBookingDetailsPage";
 import { ManagerBookingsPage } from "../features/manager-bookings/ManagerBookingsPage";
+import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 
 function renderRoute(path = "/book") {
   const router = createMemoryRouter(
@@ -23,6 +25,11 @@ function renderRoute(path = "/book") {
             element: <BookingPage view="details" />,
           },
           { path: "/manager/bookings", element: <ManagerBookingsPage /> },
+          {
+            path: "/manager/bookings/:bookingId",
+            element: <ManagerBookingDetailsPage />,
+          },
+          { path: "/manager/schedule", element: <ManagerSchedulePage /> },
         ],
       },
     ],
@@ -98,5 +105,29 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Alex Washer")).toBeChecked();
     expect(screen.getByRole("button", { name: "Сохранить назначение" })).toBeEnabled();
+  });
+
+  it("renders manager booking details", async () => {
+    renderRoute("/manager/bookings/1");
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Заказ #1" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Клиент #1")).toBeInTheDocument();
+    expect(screen.getByText("Бокс 1")).toBeInTheDocument();
+    expect(screen.getByText("Alex Washer")).toBeInTheDocument();
+  });
+
+  it("opens assignment dialog from manager schedule", async () => {
+    const user = userEvent.setup();
+
+    renderRoute("/manager/schedule");
+
+    await screen.findByRole("heading", { level: 1, name: "Расписание" });
+    await user.click(await screen.findByLabelText("Назначить заказ #1"));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Назначение заказа #1" }),
+    ).toBeInTheDocument();
   });
 });

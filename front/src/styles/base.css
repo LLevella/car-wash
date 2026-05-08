@@ -300,6 +300,11 @@ a {
   color: #ffffff;
 }
 
+.button--compact {
+  min-height: 34px;
+  padding: 0 var(--space-2);
+}
+
 .status {
   display: inline-flex;
   align-items: center;
@@ -586,6 +591,12 @@ a {
   color: var(--color-muted);
 }
 
+.schedule-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .inline-select {
   width: 100%;
   min-height: 32px;
@@ -640,6 +651,12 @@ a {
   font-size: 12px;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .modal {

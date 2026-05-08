@@ -1,10 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw } from "lucide-react";
+import { Eye, Plus, RefreshCw, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
 import { getWashTypes, getStations } from "../../api/dictionaries";
-import { getManagerSchedule, updateManagerBookingStatus } from "../../api/manager";
+import {
+  assignBooking,
+  getManagerSchedule,
+  updateManagerBookingStatus,
+} from "../../api/manager";
 import type {
   Booking,
   BookingStatus,
@@ -18,6 +23,7 @@ import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
+import { AssignmentModal } from "../manager-bookings/AssignmentModal";
 
 const today = new Date().toISOString().slice(0, 10);
 const scheduleHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
@@ -45,6 +51,7 @@ export function ManagerSchedulePage() {
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+  const [assigningBooking, setAssigningBooking] = useState<Booking | null>(null);
   const stationsQuery = useQuery({
     queryKey: ["dictionaries", "stations"],
     queryFn: getStations,
@@ -81,11 +88,47 @@ export function ManagerSchedulePage() {
       void queryClient.invalidateQueries({ queryKey: ["bookings"] });
     },
   });
+  const assignMutation = useMutation({
+    mutationFn: async (payload: {
+      bookingId: number;
+      washBox: number | null;
+      washers: number[];
+    }) => {
+      await ensureCsrfCookie();
+      return assignBooking(payload.bookingId, {
+        wash_box: payload.washBox,
+        washers: payload.washers,
+      });
+    },
+    onSuccess: () => {
+      setAssigningBooking(null);
+      void queryClient.invalidateQueries({ queryKey: ["manager", "schedule"] });
+      void queryClient.invalidateQueries({ queryKey: ["manager", "bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      void queryClient.invalidateQueries({ queryKey: ["availability"] });
+    },
+  });
 
   const schedule = scheduleQuery.data;
   const stations = stationsQuery.data ?? [];
   const washTypes = washTypesQuery.data ?? [];
+  const boxes = schedule?.boxes ?? [];
+  const washers = useMemo(
+    () => uniqueWashers(schedule?.shifts ?? [], schedule?.bookings ?? []),
+    [schedule?.bookings, schedule?.shifts],
+  );
   const hasSchedule = Boolean(schedule);
+  const assignError =
+    assignMutation.error instanceof Error ? assignMutation.error.message : null;
+
+  function closeAssignModal() {
+    if (assignMutation.isPending) {
+      return;
+    }
+
+    assignMutation.reset();
+    setAssigningBooking(null);
+  }
 
   return (
     <section className="page">
@@ -133,6 +176,10 @@ export function ManagerSchedulePage() {
       {hasSchedule ? (
         <>
           <ScheduleGrid
+            onAssign={(booking) => {
+              assignMutation.reset();
+              setAssigningBooking(booking);
+            }}
             onStatusChange={(bookingId, status) =>
               statusMutation.mutate({ bookingId, status })
             }
@@ -146,16 +193,34 @@ export function ManagerSchedulePage() {
           />
         </>
       ) : null}
+      <AssignmentModal
+        booking={assigningBooking}
+        boxes={boxes}
+        error={assignError}
+        onClose={closeAssignModal}
+        onSubmit={(payload) => {
+          if (assigningBooking) {
+            assignMutation.mutate({
+              bookingId: assigningBooking.id,
+              ...payload,
+            });
+          }
+        }}
+        pending={assignMutation.isPending}
+        washers={washers}
+      />
     </section>
   );
 }
 
 function ScheduleGrid({
+  onAssign,
   onStatusChange,
   schedule,
   statusPending,
   washTypes,
 }: {
+  onAssign: (booking: Booking) => void;
   onStatusChange: (bookingId: number, status: BookingStatus) => void;
   schedule: ManagerScheduleDay;
   statusPending: boolean;
@@ -197,6 +262,22 @@ function ScheduleGrid({
                       </small>
                       <small>{washerNames(booking)}</small>
                       <StatusBadge status={booking.status} />
+                      <div className="schedule-card__actions">
+                        <Link
+                          aria-label={`Детали заказа #${booking.id}`}
+                          className="button button--secondary button--compact"
+                          to={`/manager/bookings/${booking.id}`}
+                        >
+                          <Eye size={16} />
+                        </Link>
+                        <Button
+                          aria-label={`Назначить заказ #${booking.id}`}
+                          className="button--compact"
+                          icon={<UserCheck size={16} />}
+                          onClick={() => onAssign(booking)}
+                          variant="secondary"
+                        />
+                      </div>
                       <select
                         className="inline-select"
                         disabled={statusPending}
@@ -275,6 +356,27 @@ function groupBookingsByBoxAndHour(bookings: Booking[]) {
 
 function cellKey(boxId: number, hour: number) {
   return `${boxId}:${hour}`;
+}
+
+function uniqueWashers(
+  shifts: Array<{ washer: number; washer_name: string }>,
+  bookings: Booking[],
+) {
+  const washers = new Map<number, string>();
+
+  for (const shift of shifts) {
+    washers.set(shift.washer, shift.washer_name);
+  }
+
+  for (const booking of bookings) {
+    for (const washer of booking.washers) {
+      washers.set(washer.id, washer.name);
+    }
+  }
+
+  return Array.from(washers, ([id, name]) => ({ id, name })).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
 }
 
 function stationLabel(station: Station) {

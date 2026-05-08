@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Search, UserCheck } from "lucide-react";
+import { Eye, RefreshCw, Search, UserCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ensureCsrfCookie } from "../../api/auth";
 import { getStations, getWashTypes } from "../../api/dictionaries";
@@ -13,9 +14,9 @@ import {
 import type { Booking, BookingStatus, Station, WashType } from "../../api/types";
 import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
-import { Modal } from "../../components/Modal";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
+import { AssignmentModal } from "./AssignmentModal";
 
 type StatusFilter = BookingStatus | "all";
 
@@ -333,137 +334,28 @@ function BookingsTable({
               </td>
               <td>{formatMoney(booking.cost)}</td>
               <td>
-                <Button
-                  icon={<UserCheck size={18} />}
-                  onClick={() => onAssign(booking)}
-                  variant="secondary"
-                >
-                  Назначить
-                </Button>
+                <div className="table-actions">
+                  <Link
+                    className="button button--secondary"
+                    to={`/manager/bookings/${booking.id}`}
+                  >
+                    <Eye size={18} />
+                    <span>Детали</span>
+                  </Link>
+                  <Button
+                    icon={<UserCheck size={18} />}
+                    onClick={() => onAssign(booking)}
+                    variant="secondary"
+                  >
+                    Назначить
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-  );
-}
-
-function AssignmentModal({
-  booking,
-  boxes,
-  error,
-  onClose,
-  onSubmit,
-  pending,
-  washers,
-}: {
-  booking: Booking | null;
-  boxes: Array<{ id: number; name: string }>;
-  error: string | null;
-  onClose: () => void;
-  onSubmit: (payload: { washBox: number | null; washers: number[] }) => void;
-  pending: boolean;
-  washers: Array<{ id: number; name: string }>;
-}) {
-  const [selectedBoxId, setSelectedBoxId] = useState<number | null>(null);
-  const [selectedWasherIds, setSelectedWasherIds] = useState<number[]>([]);
-
-  useEffect(() => {
-    if (booking) {
-      setSelectedBoxId(booking.wash_box);
-      setSelectedWasherIds(booking.washers.map((washer) => washer.id));
-    }
-  }, [booking]);
-
-  function toggleWasher(washerId: number) {
-    setSelectedWasherIds((current) =>
-      current.includes(washerId)
-        ? current.filter((id) => id !== washerId)
-        : [...current, washerId],
-    );
-  }
-
-  return (
-    <Modal
-      onClose={onClose}
-      open={Boolean(booking)}
-      title={booking ? `Назначение заказа #${booking.id}` : "Назначение заказа"}
-    >
-      {booking ? (
-        <div className="assignment-form">
-          <dl className="booking-card__meta">
-            <div>
-              <dt>Время</dt>
-              <dd>{formatTimeRange(booking.starts_at, booking.ends_at)}</dd>
-            </div>
-            <div>
-              <dt>Текущий бокс</dt>
-              <dd>{boxName(boxes, booking.wash_box)}</dd>
-            </div>
-            <div>
-              <dt>Мойщики</dt>
-              <dd>{washerNames(booking)}</dd>
-            </div>
-          </dl>
-          <SelectField
-            label="Бокс"
-            onChange={(event) =>
-              setSelectedBoxId(event.target.value ? Number(event.target.value) : null)
-            }
-            value={selectedBoxId ?? ""}
-          >
-            <option value="">Авто-подбор</option>
-            {boxes.map((box) => (
-              <option key={box.id} value={box.id}>
-                {box.name}
-              </option>
-            ))}
-          </SelectField>
-          <fieldset className="checkbox-group">
-            <legend>Мойщики</legend>
-            <div className="checkbox-list">
-              {washers.map((washer) => (
-                <label className="checkbox-row" key={washer.id}>
-                  <input
-                    checked={selectedWasherIds.includes(washer.id)}
-                    onChange={() => toggleWasher(washer.id)}
-                    type="checkbox"
-                  />
-                  <span>{washer.name}</span>
-                </label>
-              ))}
-              {!washers.length ? (
-                <div className="state-panel">
-                  Нет смен на выбранную дату. Можно оставить авто-подбор.
-                </div>
-              ) : null}
-            </div>
-          </fieldset>
-          <p className="field__hint">
-            Если не выбрать бокс или мойщика, backend подберет свободный ресурс.
-          </p>
-          {error ? <div className="field__error">{error}</div> : null}
-          <div className="modal__actions">
-            <Button onClick={onClose} variant="secondary">
-              Закрыть
-            </Button>
-            <Button
-              disabled={pending}
-              icon={<UserCheck size={18} />}
-              onClick={() =>
-                onSubmit({
-                  washBox: selectedBoxId,
-                  washers: selectedWasherIds,
-                })
-              }
-            >
-              Сохранить назначение
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </Modal>
   );
 }
 
