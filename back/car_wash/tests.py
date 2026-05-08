@@ -49,6 +49,7 @@ from car_wash.services.booking import (
     assign_booking_resources,
     cancel_booking,
     create_booking,
+    mark_booking_paid,
     reschedule_booking,
 )
 from car_wash.services.pricing import (
@@ -1235,6 +1236,91 @@ class AvailabilityServiceTests(TestCase):
                 status=NotificationOutbox.Status.PENDING,
             ).exists()
         )
+
+    def test_new_booking_starts_unpaid(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        self.assertEqual(booking.payment_status, Booking.PaymentStatus.UNPAID)
+        self.assertEqual(booking.paid_amount, Decimal("0"))
+        self.assertEqual(booking.payment_provider, "")
+        self.assertEqual(booking.payment_reference, "")
+
+    def test_mark_booking_paid_records_full_payment(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        mark_booking_paid(
+            booking=booking,
+            amount=booking.down_payment,
+            provider="stripe",
+            reference="pi_test_001",
+            actor=self.customer_user,
+        )
+        booking.refresh_from_db()
+
+        self.assertEqual(booking.payment_status, Booking.PaymentStatus.PAID)
+        self.assertEqual(booking.paid_amount, booking.down_payment)
+        self.assertEqual(booking.payment_provider, "stripe")
+        self.assertEqual(booking.payment_reference, "pi_test_001")
+
+    def test_mark_booking_paid_with_partial_amount_marks_awaiting(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        mark_booking_paid(booking=booking, amount=Decimal("100.00"))
+        booking.refresh_from_db()
+
+        self.assertEqual(booking.payment_status, Booking.PaymentStatus.AWAITING)
+
+    def test_mark_booking_paid_rejects_negative_amount(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        with self.assertRaises(BookingError):
+            mark_booking_paid(booking=booking, amount=Decimal("-1"))
+
+    def test_booking_payload_exposes_payment_fields(self):
+        self._login_customer()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        mark_booking_paid(booking=booking, amount=booking.down_payment)
+
+        response = self.client.get(reverse("api:car_wash:booking-list"))
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()["data"]
+        self.assertEqual(len(payload), 1)
+        item = payload[0]
+        self.assertEqual(item["payment_status"], Booking.PaymentStatus.PAID)
+        self.assertIn("paid_amount", item)
+        self.assertIn("payment_provider", item)
+        self.assertIn("payment_reference", item)
 
     def test_audit_log_records_lifecycle_events(self):
         booking = create_booking(

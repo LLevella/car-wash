@@ -194,6 +194,12 @@ class Booking(models.Model):
         CANCELLED = "cancelled", "Отменена"
         NO_SHOW = "no_show", "Клиент не приехал"
 
+    class PaymentStatus(models.TextChoices):
+        UNPAID = "unpaid", "Не оплачено"
+        AWAITING = "awaiting", "Ожидает оплаты"
+        PAID = "paid", "Оплачено"
+        REFUNDED = "refunded", "Возврат"
+
     customer = models.ForeignKey(
         Customer,
         verbose_name="Заказчик",
@@ -239,6 +245,20 @@ class Booking(models.Model):
         decimal_places=2,
     )
     residual = models.DecimalField("Остаток", max_digits=12, decimal_places=2)
+    payment_status = models.CharField(
+        "Статус оплаты",
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.UNPAID,
+    )
+    paid_amount = models.DecimalField(
+        "Оплачено",
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+    )
+    payment_provider = models.CharField("Провайдер оплаты", max_length=64, blank=True)
+    payment_reference = models.CharField("Ссылка на оплату", max_length=128, blank=True)
     comment = models.TextField("Комментарий", blank=True)
     created_at = models.DateTimeField("Создана", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлена", auto_now=True)

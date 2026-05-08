@@ -264,6 +264,60 @@ def assign_booking_resources(
     return booking
 
 
+def mark_booking_paid(
+    *,
+    booking: Booking,
+    amount,
+    provider: str = "",
+    reference: str = "",
+    actor=None,
+) -> Booking:
+    """Record an external payment against a booking.
+
+    The plan separates the calculated down payment (set when the booking
+    is created) from the amount actually settled by the customer; this
+    helper writes the latter alongside provider/reference fields. It is
+    called only by the payment integration layer — the booking status
+    itself is not changed automatically because that decision is policy-
+    dependent (auto-confirm-on-paid vs. manual confirmation)."""
+
+    if amount is None:
+        raise BookingError("Сумма оплаты обязательна.")
+    if amount < 0:
+        raise BookingError("Сумма оплаты не может быть отрицательной.")
+
+    with transaction.atomic():
+        booking.paid_amount = amount
+        booking.payment_provider = provider
+        booking.payment_reference = reference
+        booking.payment_status = (
+            Booking.PaymentStatus.PAID
+            if amount and amount >= booking.down_payment
+            else Booking.PaymentStatus.AWAITING
+        )
+        booking.save(
+            update_fields=[
+                "paid_amount",
+                "payment_provider",
+                "payment_reference",
+                "payment_status",
+                "updated_at",
+            ]
+        )
+        _record_audit(
+            actor=actor,
+            action=AuditEvent.Action.BOOKING_STATUS_CHANGED,
+            entity=booking,
+            context={
+                "payment_status": booking.payment_status,
+                "paid_amount": str(booking.paid_amount),
+                "provider": provider,
+            },
+        )
+
+    return booking
+
+
 def change_booking_status(*, booking: Booking, status: str, actor=None) -> Booking:
     valid_statuses = {choice for choice, _ in Booking.Status.choices}
     if status not in valid_statuses:

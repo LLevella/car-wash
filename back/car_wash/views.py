@@ -352,6 +352,10 @@ def _booking_payload(booking):
         "cost": str(booking.cost),
         "down_payment": str(booking.down_payment),
         "residual": str(booking.residual),
+        "payment_status": booking.payment_status,
+        "paid_amount": str(booking.paid_amount),
+        "payment_provider": booking.payment_provider,
+        "payment_reference": booking.payment_reference,
         "washers": [
             {
                 "id": assignment.washer_id,

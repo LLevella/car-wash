@@ -9,11 +9,11 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-21 выполнены.
+- Backend этапы 1-22 выполнены.
 - Frontend MVP этапы 1-12 выполнены (включая production build/deploy,
   управление автомобилями клиента, обновлённый manager schedule UI,
   автогенерацию TypeScript-типов из OpenAPI и просмотр audit-истории).
-- В работе/планируется: backend этапы 22-24, расширение frontend (F13-F14),
+- В работе/планируется: backend этапы 23-24, расширение frontend (F13-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -1444,6 +1444,8 @@ F-этап не стартует, пока соответствующий B-эт
 
 #### B22. Payment-ready слой
 
+Статус: выполнен.
+
 Задачи:
 
 - Добавить payment status в booking или отдельную модель `Payment`.
@@ -1452,11 +1454,43 @@ F-этап не стартует, пока соответствующий B-эт
   провайдера.
 - Обновить статусы и права изменения booking после оплаты.
 
+Реализовано:
+
+- В `Booking` добавлены поля `payment_status` (TextChoices: `unpaid`,
+  `awaiting`, `paid`, `refunded`, default `unpaid`), `paid_amount`
+  (Decimal, default 0), `payment_provider` (CharField), `payment_reference`
+  (CharField).
+- Миграция `0011_booking_paid_amount_*` добавляет поля без
+  пересоздания записей.
+- В `booking` сервис добавлен helper `mark_booking_paid(booking, amount,
+  provider, reference, actor)`. Helper:
+  - валидирует, что сумма не отрицательная;
+  - при `amount >= booking.down_payment` ставит `payment_status = PAID`,
+    иначе `AWAITING`;
+  - сохраняет provider/reference;
+  - пишет audit-row с контекстом `payment_status`/`paid_amount`/`provider`;
+  - не меняет `Booking.status` — этим занимается отдельный policy-layer
+    (auto-confirm-on-paid vs. manual-confirm).
+- `_booking_payload` возвращает `payment_status`, `paid_amount`,
+  `payment_provider`, `payment_reference` — frontend сразу видит payment
+  state в `/api/car-wash/bookings/`, `/api/manager/...` и схеме.
+- Сгенерирован обновлённый `front/src/api/types-generated.ts`.
+- Тесты: дефолтные значения новой записи; полная оплата → PAID;
+  частичная оплата → AWAITING; отрицательная сумма → BookingError;
+  payload содержит payment-поля.
+
 Критерии готовности:
 
-- backend различает рассчитанный аванс и оплаченный аванс;
-- booking flow готов к будущей онлайн-оплате;
-- без payment provider система продолжает работать вручную.
+- backend хранит и расчётный аванс (`down_payment`), и фактическую
+  оплату (`paid_amount`/`payment_status`);
+- payload booking-а готов к рендеру индикатора оплаты на frontend
+  (этап F13);
+- без интеграции с реальным провайдером система продолжает работать
+  вручную: payment_status остаётся `unpaid`, операции не блокируются.
+
+Не входит в B22: автоматическая смена `Booking.status` после оплаты,
+интеграция с конкретным платёжным провайдером и refund-flow — это
+следующий шаг после первого реального провайдера.
 
 #### B23. Production operations
 
@@ -2160,13 +2194,12 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B21 и F1-F12 выполнены):
+С учётом текущего статуса (B1-B22 и F1-F12 выполнены):
 
-1. **B22** — payment-ready слой.
-2. **F13** — статус оплаты в UI (зависит от B22).
-3. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
+1. **F13** — статус оплаты в UI (B22 выполнен, разблокирован).
+2. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
    observability.
-4. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+3. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,
