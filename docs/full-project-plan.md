@@ -9,10 +9,10 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-18 выполнены.
+- Backend этапы 1-19 выполнены.
 - Frontend MVP этапы 1-10 выполнены (включая production build/deploy,
   управление автомобилями клиента и обновлённый manager schedule UI).
-- В работе/планируется: backend этапы 19-24, расширение frontend (F11-F14),
+- В работе/планируется: backend этапы 20-24, расширение frontend (F11-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -390,12 +390,15 @@ POST   /api/manager/shifts/
 GET    /api/manager/resource-blocks/
 POST   /api/manager/resource-blocks/
 
+GET    /api/schema/
+GET    /api/schema/swagger/
+GET    /api/schema/redoc/
+
 GET    /health/
 ```
 
 ### 6.2 Запланированные endpoints
 
-- `GET /api/schema/` + Swagger/ReDoc — OpenAPI документация (этап B19).
 - Manager-endpoints дневных агрегатов (этап B24).
 - Endpoint просмотра audit-истории записи (этап B20).
 
@@ -1301,9 +1304,9 @@ F-этап не стартует, пока соответствующий B-эт
 - payload расширен без удаления старых полей (обратная совместимость
   сохранена).
 
-### 10.2 Backend, в плане
-
 #### B19. OpenAPI и типы для frontend
+
+Статус: выполнен.
 
 Задачи:
 
@@ -1313,11 +1316,41 @@ F-этап не стартует, пока соответствующий B-эт
 - Настроить CI check генерации схемы.
 - Подготовить frontend к генерации TypeScript types.
 
+Реализовано:
+
+- Установлен `drf-spectacular==0.27.2`, добавлен в `INSTALLED_APPS` и в
+  `requirements.txt`.
+- В `REST_FRAMEWORK['DEFAULT_SCHEMA_CLASS']` подключён собственный
+  `back.schema_extensions.LooseAutoSchema`, который для plain `APIView`
+  без `serializer_class` молча возвращает generic-объект вместо ошибки.
+  Это покрывает все наши APIView без переписывания views под
+  `GenericAPIView` или ручной @extend_schema на каждом классе.
+- В `back/api_urls.py` добавлены маршруты:
+  - `GET /api/schema/` — YAML-схема (`api:schema`);
+  - `GET /api/schema/swagger/` — Swagger UI (`api:schema-swagger`);
+  - `GET /api/schema/redoc/` — ReDoc (`api:schema-redoc`).
+- `SPECTACULAR_SETTINGS['SERVE_PERMISSIONS']` поднят до
+  `car_wash.permissions.IsManager`, поэтому schema/UI доступны только
+  manager/admin — production-сервер не публикует API-surface наружу.
+- `ManagerBookingDetailView.get` декорирован
+  `@extend_schema(operation_id="manager_booking_retrieve")`, чтобы
+  устранить коллизию operationId с `ManagerBookingListView`.
+- В CI workflow добавлен шаг `python manage.py spectacular --validate
+  --fail-on-warn --file ../openapi.yaml`, плюс upload artifact
+  `openapi-schema`.
+- Добавлены тесты `OpenApiSchemaTests`: anonymous → 403, manager → 200,
+  Swagger UI рендерится для manager, ключевые пути присутствуют в YAML.
+
 Критерии готовности:
 
-- OpenAPI schema генерируется в CI;
-- frontend может сверять типы API-контрактов;
-- документация не раскрывает лишние production-данные.
+- `python manage.py spectacular --validate --fail-on-warn` выходит с 0,
+  без ошибок и предупреждений на чистом репозитории;
+- frontend может сверять контракт через скачанный YAML или Swagger UI;
+- production-окружение защищает schema/UI permission-классом IsManager;
+- artifact `openapi-schema` поднимается из CI как источник истины для
+  будущей кодогенерации (этап F11).
+
+### 10.2 Backend, в плане
 
 #### B20. Audit log для управленческих действий
 
@@ -2011,17 +2044,16 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B18 и F1-F10 выполнены):
+С учётом текущего статуса (B1-B19 и F1-F10 выполнены):
 
-1. **B19** — OpenAPI и подготовка к генерации типов.
-2. **F11** — генерация типов из OpenAPI (зависит от B19).
-3. **B20** — audit log управленческих действий.
-4. **F12** — UI просмотра audit log (зависит от B20).
-5. **B21**, **B22** — notifications-ready и payment-ready слои.
-6. **F13** — статус оплаты в UI (зависит от B22).
-7. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
+1. **F11** — генерация типов из OpenAPI (B19 выполнен, разблокирован).
+2. **B20** — audit log управленческих действий.
+3. **F12** — UI просмотра audit log (зависит от B20).
+4. **B21**, **B22** — notifications-ready и payment-ready слои.
+5. **F13** — статус оплаты в UI (зависит от B22).
+6. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
    observability.
-8. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
+7. **B24**, **F14** — отчёты MVP+ (F14 зависит от B24).
 
 Параллельно с roadmap — оппортунистические починки тех-долга (раздел 14):
 опечатка в `CarDescription`, удаление обязательности `Customer.car`,

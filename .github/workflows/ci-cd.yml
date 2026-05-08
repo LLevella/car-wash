@@ -61,6 +61,16 @@ jobs:
           DJANGO_SECURE_HSTS_PRELOAD: "true"
         run: python manage.py check --deploy --fail-level WARNING
 
+      - name: Validate OpenAPI schema
+        working-directory: back
+        run: python manage.py spectacular --validate --fail-on-warn --file ../openapi.yaml
+
+      - name: Upload OpenAPI schema
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: openapi.yaml
+
       - name: Run tests with coverage
         working-directory: back
         run: |

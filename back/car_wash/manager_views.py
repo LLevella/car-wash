@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date, parse_datetime
 
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.views import APIView
 
@@ -106,6 +107,7 @@ class ManagerScheduleView(APIView):
 class ManagerBookingDetailView(APIView):
     permission_classes = (IsManager,)
 
+    @extend_schema(operation_id="manager_booking_retrieve")
     def get(self, request, pk):
         booking = get_object_or_404(_manager_bookings_queryset(), pk=pk)
 

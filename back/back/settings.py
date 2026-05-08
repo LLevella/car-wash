@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_json_api',
+    'drf_spectacular',
     'django_filters',
     'cars',
     'personal',
@@ -191,5 +192,23 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_RENDERER_CLASSES': (
         'rest_framework_json_api.renderers.JSONRenderer',
     ),
-    'TEST_REQUEST_DEFAULT_FORMAT': 'vnd.api+json'
+    'TEST_REQUEST_DEFAULT_FORMAT': 'vnd.api+json',
+    'DEFAULT_SCHEMA_CLASS': 'back.schema_extensions.LooseAutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Car Wash API',
+    'DESCRIPTION': (
+        'OpenAPI schema for the Car Wash service: customer booking, '
+        'manager day planning, and supporting dictionary endpoints. '
+        'Generated automatically from DRF views; the manual contract '
+        'in front/src/api/types.ts must stay aligned with this schema '
+        'until F11 (auto-generated TypeScript types) lands.'
+    ),
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # Hide schema/swagger endpoints behind the IsManager permission so the
+    # public Internet does not see internal API surface in production.
+    # Dev users still get a browsable Swagger UI when authenticated.
+    'SERVE_PERMISSIONS': ['car_wash.permissions.IsManager'],
 }

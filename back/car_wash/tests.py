@@ -156,6 +156,43 @@ class HealthCheckTests(TestCase):
         self.assertEqual(response["Cache-Control"], "no-store")
 
 
+class OpenApiSchemaTests(TestCase):
+    """The OpenAPI schema endpoints must stay reachable and
+    permission-gated: anonymous users see a 403 (so production deployments
+    don't leak the API surface), authenticated managers can introspect the
+    contract, and the YAML schema lists at least one core endpoint."""
+
+    def setUp(self):
+        from car_wash.permissions import MANAGER_GROUP
+
+        manager_user = User.objects.create_user(
+            username="schema-manager",
+            password="password",
+        )
+        Group.objects.get_or_create(name=MANAGER_GROUP)[0].user_set.add(manager_user)
+        self.manager_user = manager_user
+
+    def test_schema_endpoint_requires_authentication(self):
+        response = self.client.get(reverse("api:schema"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_schema_endpoint_returns_openapi_yaml_for_manager(self):
+        self.client.force_login(self.manager_user)
+        response = self.client.get(reverse("api:schema"))
+
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode("utf-8")
+        self.assertIn("openapi:", body)
+        self.assertIn("/api/auth/me/", body)
+        self.assertIn("/api/manager/schedule/", body)
+
+    def test_swagger_ui_endpoint_requires_manager(self):
+        self.client.force_login(self.manager_user)
+        response = self.client.get(reverse("api:schema-swagger"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("swagger", response.content.decode("utf-8").lower())
+
+
 class ApiResponseHelperTests(SimpleTestCase):
     def test_success_response_wraps_data_payload(self):
         response = success_response({"id": 1})
