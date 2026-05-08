@@ -10,6 +10,7 @@ from car_wash.models import (
     AuditEvent,
     Booking,
     BookingAssignment,
+    NotificationOutbox,
     WashBox,
     WashType,
 )
@@ -32,6 +33,21 @@ def _record_audit(*, actor, action, entity, context=None):
         entity_type=type(entity).__name__,
         entity_id=entity.pk,
         context=context or {},
+    )
+
+
+def _enqueue_notification(*, booking, event, payload=None):
+    """Append an outbox row in the same transaction as the booking change.
+
+    Each domain transition produces exactly one row. The
+    ``process_notifications`` management command (or a future
+    SMS/email worker) iterates over ``status="pending"`` rows in
+    insertion order and bumps them to ``sent`` once delivered."""
+
+    NotificationOutbox.objects.create(
+        booking=booking,
+        event=event,
+        payload=payload or {},
     )
 
 
@@ -102,6 +118,15 @@ def create_booking(
                 "washers": [washer.id for washer in selected_washers],
             },
         )
+        _enqueue_notification(
+            booking=booking,
+            event=NotificationOutbox.Event.BOOKING_CREATED,
+            payload={
+                "starts_at": booking.starts_at.isoformat(),
+                "ends_at": booking.ends_at.isoformat(),
+                "wash_station": booking.wash_station_id,
+            },
+        )
 
     return booking
 
@@ -119,6 +144,11 @@ def cancel_booking(*, booking: Booking, actor=None) -> Booking:
             action=AuditEvent.Action.BOOKING_CANCELLED,
             entity=booking,
             context={"previous_status": previous_status},
+        )
+        _enqueue_notification(
+            booking=booking,
+            event=NotificationOutbox.Event.BOOKING_CANCELLED,
+            payload={"previous_status": previous_status},
         )
     return booking
 
@@ -185,6 +215,16 @@ def reschedule_booking(
                 "washers": [washer.id for washer in selected_washers],
             },
         )
+        _enqueue_notification(
+            booking=booking,
+            event=NotificationOutbox.Event.BOOKING_RESCHEDULED,
+            payload={
+                "previous_starts_at": previous_starts_at.isoformat(),
+                "previous_ends_at": previous_ends_at.isoformat(),
+                "starts_at": booking.starts_at.isoformat(),
+                "ends_at": booking.ends_at.isoformat(),
+            },
+        )
 
     return booking
 
@@ -238,6 +278,14 @@ def change_booking_status(*, booking: Booking, status: str, actor=None) -> Booki
             action=AuditEvent.Action.BOOKING_STATUS_CHANGED,
             entity=booking,
             context={
+                "previous_status": previous_status,
+                "status": status,
+            },
+        )
+        _enqueue_notification(
+            booking=booking,
+            event=NotificationOutbox.Event.BOOKING_STATUS_CHANGED,
+            payload={
                 "previous_status": previous_status,
                 "status": status,
             },

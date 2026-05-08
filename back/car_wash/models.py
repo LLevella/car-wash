@@ -413,6 +413,65 @@ class ResourceBlock(models.Model):
         verbose_name_plural = "Блокировки ресурсов"
 
 
+class NotificationOutbox(models.Model):
+    """Transactional outbox for customer-facing notifications.
+
+    Rows are created next to the domain change in the same transaction, so
+    a notification cannot be lost or sent twice for the same booking
+    transition. A real SMS/email provider integration consumes
+    ``status="pending"`` rows and bumps them to ``sent`` or ``failed``;
+    until that integration ships the rows accumulate so dev/QA can replay
+    them via the ``process_notifications`` management command."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "В очереди"
+        SENT = "sent", "Отправлено"
+        FAILED = "failed", "Ошибка"
+
+    class Event(models.TextChoices):
+        BOOKING_CREATED = "booking_created", "Запись создана"
+        BOOKING_RESCHEDULED = "booking_rescheduled", "Запись перенесена"
+        BOOKING_CANCELLED = "booking_cancelled", "Запись отменена"
+        BOOKING_STATUS_CHANGED = "booking_status_changed", "Статус изменён"
+
+    booking = models.ForeignKey(
+        "Booking",
+        verbose_name="Запись",
+        on_delete=models.CASCADE,
+        related_name="notification_events",
+    )
+    event = models.CharField("Событие", max_length=40, choices=Event.choices)
+    status = models.CharField(
+        "Статус",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    payload = models.JSONField("Полезная нагрузка", default=dict, blank=True)
+    last_error = models.TextField("Последняя ошибка", blank=True)
+    attempts = models.PositiveSmallIntegerField("Попыток", default=0)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    processed_at = models.DateTimeField("Отправлено", blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.event} #{self.booking_id} [{self.status}]"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["status", "created_at"],
+                name="outbox_status_time_idx",
+            ),
+            models.Index(
+                fields=["booking", "event"],
+                name="outbox_booking_event_idx",
+            ),
+        ]
+        ordering = ("created_at",)
+        verbose_name = "Уведомление в outbox"
+        verbose_name_plural = "Уведомления в outbox"
+
+
 class AuditEvent(models.Model):
     """Audit trail for manager-level domain actions."""
 

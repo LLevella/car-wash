@@ -9,11 +9,11 @@ frontend-план этапов 1-8 с сохранением всех детал
 
 Текущий статус (на 2026-05-08):
 
-- Backend этапы 1-20 выполнены.
+- Backend этапы 1-21 выполнены.
 - Frontend MVP этапы 1-12 выполнены (включая production build/deploy,
   управление автомобилями клиента, обновлённый manager schedule UI,
   автогенерацию TypeScript-типов из OpenAPI и просмотр audit-истории).
-- В работе/планируется: backend этапы 21-24, расширение frontend (F13-F14),
+- В работе/планируется: backend этапы 22-24, расширение frontend (F13-F14),
   доработки инфраструктуры.
 
 ## 1. Контекст и цель проекта
@@ -1400,6 +1400,8 @@ F-этап не стартует, пока соответствующий B-эт
 
 #### B21. Notifications-ready слой
 
+Статус: выполнен.
+
 Задачи:
 
 - Добавить `NotificationOutbox`.
@@ -1408,11 +1410,37 @@ F-этап не стартует, пока соответствующий B-эт
 - Пока не подключать реальный SMS/email provider.
 - Добавить management command для обработки outbox в dev.
 
+Реализовано:
+
+- Добавлена модель `car_wash.NotificationOutbox` с полями `booking`,
+  `event` (TextChoices: `BOOKING_CREATED`, `BOOKING_RESCHEDULED`,
+  `BOOKING_CANCELLED`, `BOOKING_STATUS_CHANGED`), `status` (`pending`,
+  `sent`, `failed`), `payload` (JSON), `attempts`, `last_error`,
+  `created_at`, `processed_at`. Индексы по `(status, created_at)` и
+  `(booking, event)`.
+- Миграция `0010_notificationoutbox_and_more` создаёт таблицу.
+- В `booking` сервис добавлен helper `_enqueue_notification`. Каждая
+  доменная операция (`create_booking`, `cancel_booking`,
+  `reschedule_booking`, `change_booking_status`) пишет outbox-row
+  внутри той же `transaction.atomic()`, что и сам booking. Если
+  транзакция откатывается — outbox-row тоже откатывается.
+- Management command `python manage.py process_notifications` обрабатывает
+  pending-row-ы по порядку `created_at`, увеличивает `attempts`,
+  переводит в `sent` и проставляет `processed_at`. Поддерживает флаги
+  `--dry-run` и `--limit N`. Пустая очередь приводит к успешному
+  no-op-выходу.
+- Тесты: lifecycle событий (3 ивента после CREATE→RESCHEDULE→CANCEL),
+  process_notifications помечает row sent и idempotent на повторных
+  запусках, dry-run сохраняет pending-state.
+
 Критерии готовности:
 
-- события уведомлений фиксируются транзакционно рядом с изменением записи;
-- повторная обработка outbox безопасна;
-- реального внешнего провайдера можно подключить отдельным этапом.
+- outbox-события фиксируются транзакционно рядом с изменением записи;
+- повторная обработка очереди безопасна — sent-row-ы не повторно
+  обрабатываются;
+- реального SMS/email-провайдера можно подключить, заменив тело команды
+  `process_notifications` на вызов внешнего сервиса; формат row не
+  меняется.
 
 #### B22. Payment-ready слой
 
@@ -2132,9 +2160,9 @@ queryset-ссылок. Сделать в рамках первого же эта
 
 ## 18. Рекомендуемый ближайший порядок работ
 
-С учётом текущего статуса (B1-B20 и F1-F12 выполнены):
+С учётом текущего статуса (B1-B21 и F1-F12 выполнены):
 
-1. **B21**, **B22** — notifications-ready и payment-ready слои.
+1. **B22** — payment-ready слой.
 2. **F13** — статус оплаты в UI (зависит от B22).
 3. **B23**, **I7-I9** — production operations: PostgreSQL compose, backup,
    observability.

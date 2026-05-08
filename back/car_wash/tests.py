@@ -28,6 +28,7 @@ from car_wash.models import (
     BookingAssignment,
     DownPayment,
     ManagerStationAccess,
+    NotificationOutbox,
     ResourceBlock,
     WashBox,
     WashCost,
@@ -1162,6 +1163,78 @@ class AvailabilityServiceTests(TestCase):
 
         own_booking.refresh_from_db()
         self.assertEqual(own_booking.starts_at, make_dt(self.day, 9))
+
+    def test_notification_outbox_records_lifecycle_events(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+            actor=self.customer_user,
+        )
+        reschedule_booking(
+            booking=booking,
+            starts_at=make_dt(self.day, 11),
+            actor=self.manager_user,
+        )
+        cancel_booking(booking=booking, actor=self.manager_user)
+
+        events = list(
+            NotificationOutbox.objects.filter(booking=booking).order_by("created_at")
+        )
+        self.assertEqual(
+            [event.event for event in events],
+            [
+                NotificationOutbox.Event.BOOKING_CREATED,
+                NotificationOutbox.Event.BOOKING_RESCHEDULED,
+                NotificationOutbox.Event.BOOKING_CANCELLED,
+            ],
+        )
+        for event in events:
+            self.assertEqual(event.status, NotificationOutbox.Status.PENDING)
+
+    def test_process_notifications_marks_rows_sent(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+            actor=self.manager_user,
+        )
+
+        out = StringIO()
+        call_command("process_notifications", stdout=out)
+        output = out.getvalue()
+
+        self.assertIn("отправлено 1", output)
+        event = NotificationOutbox.objects.get(booking=booking)
+        self.assertEqual(event.status, NotificationOutbox.Status.SENT)
+        self.assertEqual(event.attempts, 1)
+        self.assertIsNotNone(event.processed_at)
+
+        # Re-running on a drained queue is a no-op.
+        out2 = StringIO()
+        call_command("process_notifications", stdout=out2)
+        self.assertIn("Очередь уведомлений пуста.", out2.getvalue())
+
+    def test_process_notifications_dry_run_keeps_rows_pending(self):
+        create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        call_command("process_notifications", "--dry-run")
+
+        self.assertTrue(
+            NotificationOutbox.objects.filter(
+                status=NotificationOutbox.Status.PENDING,
+            ).exists()
+        )
 
     def test_audit_log_records_lifecycle_events(self):
         booking = create_booking(
