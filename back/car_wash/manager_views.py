@@ -525,13 +525,27 @@ def _get_required_washers(value):
     if value is None:
         raise BookingError("Поле washers обязательно.")
 
-    washer_ids = value if isinstance(value, list) else [value]
-    washers = list(Washer.objects.filter(id__in=washer_ids))
+    washer_ids = _parse_washer_ids(value)
+    washers_by_id = {
+        washer.id: washer
+        for washer in Washer.objects.filter(id__in=washer_ids)
+    }
 
-    if len(washers) != len(set(map(int, washer_ids))):
+    if set(washer_ids) - set(washers_by_id):
         raise BookingError("Один или несколько мойщиков не найдены.")
 
-    return washers
+    return [washers_by_id[washer_id] for washer_id in dict.fromkeys(washer_ids)]
+
+
+def _parse_washer_ids(value):
+    values = value if isinstance(value, list) else [value]
+    if not values:
+        raise BookingError("Укажите хотя бы одного мойщика.")
+
+    try:
+        return [int(washer_id) for washer_id in values]
+    except (TypeError, ValueError):
+        raise BookingError("Поле washers должно содержать id мойщиков.")
 
 
 def _parse_report_range(date_from_raw, date_to_raw):

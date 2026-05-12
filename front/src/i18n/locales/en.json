@@ -119,6 +119,12 @@
       "phoneRequired": "Enter your phone number"
     }
   },
+  "api": {
+    "errors": {
+      "requestFailed": "The request failed.",
+      "validationFailed": "Check the form fields."
+    }
+  },
   "booking": {
     "newTitle": "New booking",
     "myTitle": "My bookings",
@@ -161,7 +167,9 @@
     "rescheduleCantReschedule": "This booking can no longer be rescheduled.",
     "noCarsTitle": "You don't have any cars yet. Add one to start booking.",
     "goToCars": "Go to my cars",
-    "selectParameters": "Select booking parameters."
+    "selectParameters": "Select booking parameters.",
+    "stationFallback": "Station {{id}}",
+    "serviceFallback": "Service {{id}}"
   },
   "myCars": {
     "title": "My cars",

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ensureCsrfCookie } from "../../api/auth";
@@ -29,6 +29,7 @@ type TFn = (key: string, options?: Record<string, unknown>) => string;
 
 export function ManagerResourceBlocksPage() {
   const { t } = useTranslation();
+  const defaultReason = t("managerResourceBlocks.reasonDefault");
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
@@ -37,7 +38,8 @@ export function ManagerResourceBlocksPage() {
   const [washerId, setWasherId] = useState<number | null>(null);
   const [startsAt, setStartsAt] = useState("12:00");
   const [endsAt, setEndsAt] = useState("13:00");
-  const [reason, setReason] = useState(t("managerResourceBlocks.reasonDefault"));
+  const [reason, setReason] = useState(defaultReason);
+  const previousDefaultReason = useRef(defaultReason);
 
   const stationsQuery = useQuery({
     queryKey: ["dictionaries", "stations"],
@@ -49,6 +51,13 @@ export function ManagerResourceBlocksPage() {
       setSelectedStationId(stationsQuery.data[0].id);
     }
   }, [selectedStationId, stationsQuery.data]);
+
+  useEffect(() => {
+    setReason((currentReason) =>
+      currentReason === previousDefaultReason.current ? defaultReason : currentReason,
+    );
+    previousDefaultReason.current = defaultReason;
+  }, [defaultReason]);
 
   const scheduleQuery = useQuery({
     queryKey: ["manager", "schedule", selectedStationId, date],

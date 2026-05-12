@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 export type ApiEnvelope<T> = {
   data: T;
 };
@@ -90,7 +92,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function readErrorMessage(body: ApiErrorBody | null) {
   if (!body?.detail) {
-    return "Запрос завершился ошибкой.";
+    return i18n.t("api.errors.requestFailed");
   }
 
   if (typeof body.detail === "string") {
@@ -101,7 +103,7 @@ function readErrorMessage(body: ApiErrorBody | null) {
     return body.detail.join(" ");
   }
 
-  return "Проверьте поля формы.";
+  return i18n.t("api.errors.validationFailed");
 }
 
 function getCookie(name: string) {

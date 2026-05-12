@@ -1,6 +1,12 @@
 import type { Station, WasherShift } from "../../api/types";
+import {
+  dateInputValue,
+  formatDate,
+  formatTime,
+  formatTimeRange,
+} from "../../i18n/format";
 
-export const today = new Date().toISOString().slice(0, 10);
+export const today = dateInputValue();
 
 export function stationLabel(station: Station) {
   return station.address ? `${station.name}, ${station.address}` : station.name;
@@ -25,24 +31,7 @@ export function validateTimeRange(
   return null;
 }
 
-export function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-export function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-export function formatTimeRange(startsAt: string, endsAt: string) {
-  return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
-}
+export { formatDate, formatTime, formatTimeRange };
 
 export function uniqueShiftWashers(shifts: WasherShift[]) {
   const washers = new Map<number, string>();

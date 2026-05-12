@@ -162,12 +162,12 @@ class BookingListCreateView(APIView):
                 washers=washers,
                 actor=request.user,
             )
+        except BookingError as exc:
+            return error_response(str(exc), code="booking_error")
         except ValueError as exc:
             return _starts_at_error_response(exc)
         except PricingConfigurationError as exc:
             return error_response(str(exc), code="pricing_configuration_error")
-        except BookingError as exc:
-            return error_response(str(exc), code="booking_error")
 
         return success_response(
             _booking_payload(booking),
@@ -235,12 +235,12 @@ class BookingRescheduleView(APIView):
                 washers=washers,
                 actor=request.user,
             )
+        except BookingError as exc:
+            return error_response(str(exc), code="booking_error")
         except ValueError as exc:
             return _starts_at_error_response(exc)
         except PricingConfigurationError as exc:
             return error_response(str(exc), code="pricing_configuration_error")
-        except BookingError as exc:
-            return error_response(str(exc), code="booking_error")
 
         return success_response(_booking_payload(booking))
 
@@ -320,10 +320,30 @@ def _get_optional_wash_box(value):
 
 
 def _get_optional_washers(value):
-    if not value:
+    if value is None:
         return None
 
-    return list(Washer.objects.filter(id__in=value))
+    washer_ids = _parse_washer_ids(value)
+    washers_by_id = {
+        washer.id: washer
+        for washer in Washer.objects.filter(id__in=washer_ids)
+    }
+    missing_ids = set(washer_ids) - set(washers_by_id)
+    if missing_ids:
+        raise BookingError("Один или несколько мойщиков не найдены.")
+
+    return [washers_by_id[washer_id] for washer_id in dict.fromkeys(washer_ids)]
+
+
+def _parse_washer_ids(value):
+    values = value if isinstance(value, list) else [value]
+    if not values:
+        raise BookingError("Укажите хотя бы одного мойщика.")
+
+    try:
+        return [int(washer_id) for washer_id in values]
+    except (TypeError, ValueError):
+        raise BookingError("Поле washers должно содержать id мойщиков.")
 
 
 def _booking_payload(booking):

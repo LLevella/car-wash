@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from io import StringIO
 import os
@@ -6,11 +6,15 @@ from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth.models import Group, User
+from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import Client, SimpleTestCase, TestCase
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework.throttling import ScopedRateThrottle
 
 from back.api import (
     NON_FIELD_ERRORS,
@@ -222,6 +226,8 @@ class OpenApiSchemaTests(TestCase):
         body = response.content.decode("utf-8")
         self.assertIn("openapi:", body)
         self.assertIn("/api/auth/me/", body)
+        self.assertIn("/api/auth/register/", body)
+        self.assertIn("'201':", body)
         self.assertIn("/api/manager/schedule/", body)
 
     def test_swagger_ui_endpoint_requires_manager(self):
@@ -423,6 +429,36 @@ class AuthApiTests(TestCase):
         self.assertEqual(response.json()["code"], "unauthorized")
         self.assertIn("password", response.json()["field_errors"])
 
+    def test_login_is_throttled(self):
+        rest_framework = settings.REST_FRAMEWORK.copy()
+        rest_framework["DEFAULT_THROTTLE_RATES"] = {
+            **rest_framework.get("DEFAULT_THROTTLE_RATES", {}),
+            "auth_login": "1/min",
+        }
+        cache.clear()
+        try:
+            with override_settings(REST_FRAMEWORK=rest_framework):
+                with mock.patch.object(
+                    ScopedRateThrottle,
+                    "THROTTLE_RATES",
+                    rest_framework["DEFAULT_THROTTLE_RATES"],
+                ):
+                    first_response = self.client.post(
+                        reverse("api:auth:login"),
+                        {"username": "anna", "password": "bad"},
+                        content_type="application/json",
+                    )
+                    second_response = self.client.post(
+                        reverse("api:auth:login"),
+                        {"username": "anna", "password": "bad"},
+                        content_type="application/json",
+                    )
+        finally:
+            cache.clear()
+
+        self.assertEqual(first_response.status_code, 401)
+        self.assertEqual(second_response.status_code, 429)
+
     def test_logout_clears_session(self):
         self.client.force_login(self.customer_user)
 
@@ -482,6 +518,61 @@ class AuthApiTests(TestCase):
         body = response.json()
         self.assertIn("username", body["field_errors"])
         self.assertEqual(body["code"], "validation_error")
+
+    def test_register_rejects_duplicate_phone(self):
+        response = self.client.post(
+            reverse("api:auth:register"),
+            {
+                "username": "newbie",
+                "password": "supersecret123",
+                "password_confirm": "supersecret123",
+                "name": "Anna 2",
+                "phone_number": self.customer.phoneNumber,
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        body = response.json()
+        self.assertIn("phone_number", body["field_errors"])
+        self.assertEqual(body["code"], "validation_error")
+
+    def test_register_is_throttled(self):
+        rest_framework = settings.REST_FRAMEWORK.copy()
+        rest_framework["DEFAULT_THROTTLE_RATES"] = {
+            **rest_framework.get("DEFAULT_THROTTLE_RATES", {}),
+            "auth_register": "1/min",
+        }
+        payload = {
+            "username": "ab",
+            "password": "",
+            "password_confirm": "",
+            "name": "",
+            "phone_number": "",
+        }
+        cache.clear()
+        try:
+            with override_settings(REST_FRAMEWORK=rest_framework):
+                with mock.patch.object(
+                    ScopedRateThrottle,
+                    "THROTTLE_RATES",
+                    rest_framework["DEFAULT_THROTTLE_RATES"],
+                ):
+                    first_response = self.client.post(
+                        reverse("api:auth:register"),
+                        payload,
+                        content_type="application/json",
+                    )
+                    second_response = self.client.post(
+                        reverse("api:auth:register"),
+                        payload,
+                        content_type="application/json",
+                    )
+        finally:
+            cache.clear()
+
+        self.assertEqual(first_response.status_code, 400)
+        self.assertEqual(second_response.status_code, 429)
 
     def test_register_rejects_mismatched_passwords(self):
         response = self.client.post(
@@ -729,6 +820,26 @@ class DictionaryApiTests(TestCase):
             [self.car.id],
         )
 
+    def test_customer_deleting_last_primary_car_clears_profile_car(self):
+        self.client.force_login(self.customer_user)
+
+        self.client.delete(
+            reverse("api:customer:car-detail", kwargs={"pk": self.second_car.id}),
+        )
+        response = self.client.delete(
+            reverse("api:customer:car-detail", kwargs={"pk": self.car.id}),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.customer.refresh_from_db()
+        self.assertIsNone(self.customer.car_id)
+
+        profile_response = self.client.get(reverse("api:customer:me"))
+        list_response = self.client.get(reverse("api:customer:car-list"))
+
+        self.assertIsNone(profile_response.json()["data"]["car"])
+        self.assertEqual(list_response.json()["data"], [])
+
     def _add_user_to_group(self, user, group_name):
         group, _ = Group.objects.get_or_create(name=group_name)
         user.groups.add(group)
@@ -785,6 +896,16 @@ class ManagerStationAccessTests(TestCase):
     def test_admin_has_unrestricted_station_scope(self):
         self.assertIsNone(user_accessible_station_ids(self.admin_user))
         self.assertTrue(can_access_station(self.admin_user, self.station))
+
+    def test_staff_without_admin_group_does_not_get_business_scope(self):
+        staff_user = User.objects.create_user(
+            username="staff-only",
+            password="password",
+            is_staff=True,
+        )
+
+        self.assertEqual(user_accessible_station_ids(staff_user), [])
+        self.assertFalse(can_access_station(staff_user, self.station))
 
 
 class PricingServiceTests(TestCase):
@@ -917,7 +1038,7 @@ class AvailabilityServiceTests(TestCase):
             name="Иван",
             surname="Петров",
         )
-        self.day = date(2026, 5, 6)
+        self.day = timezone.localdate() + timedelta(days=7)
         WasherShift.objects.create(
             washer=self.washer,
             wash_station=self.station,
@@ -1023,6 +1144,49 @@ class AvailabilityServiceTests(TestCase):
         )
 
         self.assertEqual([slot.starts_at.hour for slot in slots], [9, 11])
+
+    def test_booking_assignment_blocks_washer_across_stations(self):
+        other_station = self._create_station_without_manager_access()
+        other_box = WashBox.objects.create(
+            wash_station=other_station,
+            name="Бокс другой станции",
+        )
+        other_customer, other_car = self._create_other_customer()
+        booking = Booking.objects.create(
+            customer=other_customer,
+            car=other_car,
+            wash_station=other_station,
+            wash_box=other_box,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 10),
+            ends_at=make_dt(self.day, 11),
+            status=Booking.Status.CONFIRMED,
+            cost=Decimal("1000.00"),
+            down_payment=Decimal("250.00"),
+            residual=Decimal("750.00"),
+        )
+        BookingAssignment.objects.create(booking=booking, washer=self.washer)
+
+        slots = get_available_slots(
+            wash_station=self.station,
+            car_type=self.car_type,
+            wash_type=self.wash_type,
+            day=self.day,
+            step_minutes=60,
+        )
+
+        self.assertEqual([slot.starts_at.hour for slot in slots], [9, 11])
+
+    def test_washer_shift_save_rejects_overlapping_shift_for_same_washer(self):
+        other_station = self._create_station_without_manager_access()
+
+        with self.assertRaises(ValidationError):
+            WasherShift.objects.create(
+                washer=self.washer,
+                wash_station=other_station,
+                starts_at=make_dt(self.day, 10),
+                ends_at=make_dt(self.day, 11),
+            )
 
     def test_availability_api_returns_slots(self):
         url = reverse("api:car_wash:availability")
@@ -1144,6 +1308,27 @@ class AvailabilityServiceTests(TestCase):
                 starts_at=make_dt(self.day, 9),
             )
 
+    def test_create_booking_rejects_past_start_time(self):
+        with self.assertRaises(BookingError):
+            create_booking(
+                customer=self.customer,
+                car=self.car,
+                wash_station=self.station,
+                wash_type=self.wash_type,
+                starts_at=timezone.now() - timedelta(hours=1),
+            )
+
+    def test_create_booking_rejects_empty_explicit_washer_list(self):
+        with self.assertRaises(BookingError):
+            create_booking(
+                customer=self.customer,
+                car=self.car,
+                wash_station=self.station,
+                wash_type=self.wash_type,
+                starts_at=make_dt(self.day, 9),
+                washers=[],
+            )
+
     def test_cancel_booking_marks_booking_cancelled(self):
         booking = create_booking(
             customer=self.customer,
@@ -1156,6 +1341,42 @@ class AvailabilityServiceTests(TestCase):
         booking = cancel_booking(booking=booking)
 
         self.assertEqual(booking.status, Booking.Status.CANCELLED)
+
+    def test_cancel_booking_locks_booking_before_validation(self):
+        from car_wash.services import booking as booking_service
+
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        with mock.patch.object(
+            booking_service,
+            "_lock_booking",
+            wraps=booking_service._lock_booking,
+        ) as lock_spy:
+            cancel_booking(booking=booking)
+
+        lock_spy.assert_called_once_with(booking)
+
+    def test_cancel_booking_rejects_started_or_terminal_statuses(self):
+        for booking_status in (
+            Booking.Status.IN_PROGRESS,
+            Booking.Status.COMPLETED,
+            Booking.Status.CANCELLED,
+            Booking.Status.NO_SHOW,
+        ):
+            booking = self._create_booking(
+                starts_at=make_dt(self.day, 9),
+                ends_at=make_dt(self.day, 10),
+                status=booking_status,
+            )
+
+            with self.assertRaises(BookingError):
+                cancel_booking(booking=booking)
 
     def test_reschedule_booking_updates_time_and_keeps_assignments_valid(self):
         booking = create_booking(
@@ -1174,6 +1395,68 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(booking.starts_at, make_dt(self.day, 10))
         self.assertEqual(booking.ends_at, make_dt(self.day, 11))
         self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
+
+    def test_reschedule_booking_locks_booking_before_validation(self):
+        from car_wash.services import booking as booking_service
+
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        with mock.patch.object(
+            booking_service,
+            "_lock_booking",
+            wraps=booking_service._lock_booking,
+        ) as lock_spy:
+            reschedule_booking(
+                booking=booking,
+                starts_at=make_dt(self.day, 10),
+            )
+
+        lock_spy.assert_called_once_with(booking)
+
+    def test_reschedule_booking_rejects_terminal_status(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        booking.status = Booking.Status.CANCELLED
+        booking.save(update_fields=["status"])
+
+        with self.assertRaises(BookingError):
+            reschedule_booking(
+                booking=booking,
+                starts_at=make_dt(self.day, 10),
+            )
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CANCELLED)
+        self.assertEqual(booking.starts_at, make_dt(self.day, 9))
+
+    def test_reschedule_booking_rejects_past_target_time(self):
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+
+        with self.assertRaises(BookingError):
+            reschedule_booking(
+                booking=booking,
+                starts_at=timezone.now() - timedelta(hours=1),
+            )
+
+        booking.refresh_from_db()
+        self.assertEqual(booking.starts_at, make_dt(self.day, 9))
 
     def test_create_booking_acquires_station_lock_before_resource_check(self):
         """The station row lock must be taken inside the booking transaction.
@@ -1616,6 +1899,27 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["data"]["wash_box"], self.box.id)
         self.assertEqual(payload["data"]["washers"][0]["id"], self.washer.id)
 
+    def test_manager_booking_api_rejects_unknown_washer(self):
+        self._login_manager()
+        url = reverse("api:car_wash:booking-list")
+
+        response = self.client.post(
+            url,
+            {
+                "customer": self.customer.id,
+                "car": self.car.id,
+                "wash_station": self.station.id,
+                "wash_type": self.wash_type.id,
+                "starts_at": make_dt(self.day, 9).isoformat(),
+                "washers": [999999],
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "booking_error")
+        self.assertFalse(Booking.objects.exists())
+
     def test_booking_api_requires_authenticated_user(self):
         url = reverse("api:car_wash:booking-list")
 
@@ -1703,6 +2007,52 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["code"], "manager_assignment_required")
         self.assertIn("wash_box", payload["field_errors"])
         self.assertIn("washers", payload["field_errors"])
+
+    def test_cancel_api_rejects_terminal_booking(self):
+        self._login_customer()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        booking.status = Booking.Status.COMPLETED
+        booking.save(update_fields=["status"])
+
+        response = self.client.patch(
+            reverse("api:car_wash:booking-cancel", args=[booking.id]),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "booking_error")
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.COMPLETED)
+
+    def test_reschedule_api_rejects_cancelled_booking(self):
+        self._login_customer()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        booking.status = Booking.Status.CANCELLED
+        booking.save(update_fields=["status"])
+
+        response = self.client.patch(
+            reverse("api:car_wash:booking-reschedule", args=[booking.id]),
+            {"starts_at": make_dt(self.day, 10).isoformat()},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "booking_error")
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CANCELLED)
+        self.assertEqual(booking.starts_at, make_dt(self.day, 9))
 
     def test_customer_cannot_access_manager_schedule(self):
         self._login_customer()
@@ -1984,6 +2334,28 @@ class AvailabilityServiceTests(TestCase):
         self.assertEqual(payload["code"], "validation_error")
         self.assertIn("washers", payload["field_errors"])
 
+    def test_manager_assign_api_rejects_empty_washer_list(self):
+        self._login_manager()
+        booking = create_booking(
+            customer=self.customer,
+            car=self.car,
+            wash_station=self.station,
+            wash_type=self.wash_type,
+            starts_at=make_dt(self.day, 9),
+        )
+        url = reverse("api:manager:booking-assign", kwargs={"pk": booking.id})
+
+        response = self.client.patch(
+            url,
+            {"wash_box": self.box.id, "washers": []},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["code"], "validation_error")
+        booking.refresh_from_db()
+        self.assertEqual(booking.assignments.get().washer_id, self.washer.id)
+
     def test_manager_status_api_changes_booking_status(self):
         self._login_manager()
         booking = create_booking(
@@ -2081,6 +2453,36 @@ class AvailabilityServiceTests(TestCase):
         payload = response.json()
         self.assertEqual(payload["code"], "validation_error")
         self.assertIn("ends_at", payload["field_errors"])
+
+    def test_manager_shift_api_rejects_overlapping_shift_for_same_washer(self):
+        self._login_manager()
+        other_station = WashStation.objects.create(
+            name="Мойка 2",
+            city=self.station.city,
+            district=self.station.district,
+            address="Тестовая улица, 2",
+        )
+        ManagerStationAccess.objects.create(
+            user=self.manager_user,
+            wash_station=other_station,
+        )
+        url = reverse("api:manager:shift-list")
+
+        response = self.client.post(
+            url,
+            {
+                "washer": self.washer.id,
+                "wash_station": other_station.id,
+                "starts_at": make_dt(self.day, 10).isoformat(),
+                "ends_at": make_dt(self.day, 11).isoformat(),
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        payload = response.json()
+        self.assertEqual(payload["code"], "validation_error")
+        self.assertIn("__all__", payload["field_errors"])
 
     def test_manager_shift_api_rejects_inaccessible_station(self):
         self._login_manager()
@@ -2201,13 +2603,14 @@ class AvailabilityServiceTests(TestCase):
         )
 
     def _create_booking(self, *, starts_at, ends_at, status):
+        suffix = Customer.objects.count() + 1000
         car = Car.objects.create(
             number=f"TEST{Booking.objects.count()}",
             carType=self.car_type,
         )
         customer = Customer.objects.create(
             name="Анна",
-            phoneNumber=f"+7999000000{Booking.objects.count()}",
+            phoneNumber=f"+7999200{suffix:06d}",
             car=car,
         )
 

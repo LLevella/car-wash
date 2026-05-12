@@ -31,6 +31,9 @@ void i18n
       lookupLocalStorage: "car-wash-lang",
       caches: ["localStorage"],
     },
+  })
+  .catch((error: unknown) => {
+    console.error("Failed to initialize i18n", error);
   });
 
 export default i18n;

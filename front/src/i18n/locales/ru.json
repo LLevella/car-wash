@@ -119,6 +119,12 @@
       "phoneRequired": "Введите телефон"
     }
   },
+  "api": {
+    "errors": {
+      "requestFailed": "Запрос завершился ошибкой.",
+      "validationFailed": "Проверьте поля формы."
+    }
+  },
   "booking": {
     "newTitle": "Новая запись",
     "myTitle": "Мои записи",
@@ -161,7 +167,9 @@
     "rescheduleCantReschedule": "Эту запись уже нельзя перенести.",
     "noCarsTitle": "У вас пока нет автомобилей. Добавьте первый, чтобы записаться на мойку.",
     "goToCars": "Перейти к автомобилям",
-    "selectParameters": "Выберите параметры записи."
+    "selectParameters": "Выберите параметры записи.",
+    "stationFallback": "Станция {{id}}",
+    "serviceFallback": "Услуга {{id}}"
   },
   "myCars": {
     "title": "Мои автомобили",

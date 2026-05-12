@@ -41,6 +41,13 @@ import { Modal } from "../../components/Modal";
 import { PaymentBadge } from "../../components/PaymentBadge";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
+import {
+  dateInputValue,
+  formatDate,
+  formatMoney,
+  formatTime,
+  formatTimeRange,
+} from "../../i18n/format";
 import { useCurrentUser } from "../auth/useAuth";
 
 type BookingPageProps = {
@@ -49,7 +56,7 @@ type BookingPageProps = {
 
 type BookingFilter = "upcoming" | "past" | "cancelled";
 
-const today = new Date().toISOString().slice(0, 10);
+const today = dateInputValue();
 
 export function BookingPage({ view = "form" }: BookingPageProps) {
   const stationsQuery = useQuery({
@@ -214,8 +221,20 @@ function CustomerBookingsView({
         {bookings.map((booking) => (
           <article className="booking-card" key={booking.id}>
             <div>
-              <h2>{stationName(stations, booking.wash_station)}</h2>
-              <p>{washTypeName(washTypes, booking.wash_type)}</p>
+              <h2>
+                {stationName(
+                  stations,
+                  booking.wash_station,
+                  t("booking.stationFallback", { id: booking.wash_station }),
+                )}
+              </h2>
+              <p>
+                {washTypeName(
+                  washTypes,
+                  booking.wash_type,
+                  t("booking.serviceFallback", { id: booking.wash_type }),
+                )}
+              </p>
             </div>
             <StatusBadge status={booking.status} />
             <dl className="booking-card__meta">
@@ -400,8 +419,20 @@ function CustomerBookingDetailsView({
         <article className="panel booking-detail">
           <div className="booking-detail__header">
             <div>
-              <h2>{stationName(stations, booking.wash_station)}</h2>
-              <p>{washTypeName(washTypes, booking.wash_type)}</p>
+              <h2>
+                {stationName(
+                  stations,
+                  booking.wash_station,
+                  t("booking.stationFallback", { id: booking.wash_station }),
+                )}
+              </h2>
+              <p>
+                {washTypeName(
+                  washTypes,
+                  booking.wash_type,
+                  t("booking.serviceFallback", { id: booking.wash_type }),
+                )}
+              </p>
             </div>
             <StatusBadge status={booking.status} />
           </div>
@@ -578,11 +609,23 @@ function RescheduleModal({
           <dl className="booking-card__meta">
             <div>
               <dt>{t("common.fields.station")}</dt>
-              <dd>{stationName(stations, booking.wash_station)}</dd>
+              <dd>
+                {stationName(
+                  stations,
+                  booking.wash_station,
+                  t("booking.stationFallback", { id: booking.wash_station }),
+                )}
+              </dd>
             </div>
             <div>
               <dt>{t("common.fields.service")}</dt>
-              <dd>{washTypeName(washTypes, booking.wash_type)}</dd>
+              <dd>
+                {washTypeName(
+                  washTypes,
+                  booking.wash_type,
+                  t("booking.serviceFallback", { id: booking.wash_type }),
+                )}
+              </dd>
             </div>
             <div>
               <dt>{t("booking.currentTime")}</dt>
@@ -1034,47 +1077,10 @@ function stationLabel(station: Station) {
   return station.address ? `${station.name}, ${station.address}` : station.name;
 }
 
-function stationName(stations: Station[], stationId: number) {
-  return (
-    stations.find((station) => station.id === stationId)?.name ?? `Станция ${stationId}`
-  );
+function stationName(stations: Station[], stationId: number, fallback: string) {
+  return stations.find((station) => station.id === stationId)?.name ?? fallback;
 }
 
-function washTypeName(washTypes: WashType[], washTypeId: number) {
-  return (
-    washTypes.find((washType) => washType.id === washTypeId)?.name ??
-    `Услуга ${washTypeId}`
-  );
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat("ru-RU", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
-}
-
-function formatMoney(value: string) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return value;
-  }
-
-  return new Intl.NumberFormat("ru-RU", {
-    currency: "RUB",
-    style: "currency",
-  }).format(amount);
+function washTypeName(washTypes: WashType[], washTypeId: number, fallback: string) {
+  return washTypes.find((washType) => washType.id === washTypeId)?.name ?? fallback;
 }

@@ -87,9 +87,10 @@ class CustomerCarDetailView(APIView):
 
         if customer.car_id == car.id:
             replacement = customer_cars_queryset(customer).exclude(id=car.id).first()
-            if replacement is not None:
-                customer.car = replacement
-                customer.save(update_fields=["car"])
+            # ``Customer.car`` is nullable; clearing it prevents the profile
+            # endpoint from falling back to a soft-deleted legacy primary car.
+            customer.car = replacement
+            customer.save(update_fields=["car"])
 
         return success_response(car_payload(car))
 

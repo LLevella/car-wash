@@ -36,7 +36,12 @@ class Customer(models.Model):
         null=True,
     )
     name = models.CharField("Имя", max_length=150)
-    phoneNumber = models.CharField("Номер телефона", max_length=100)
+    phoneNumber = models.CharField(
+        "Номер телефона",
+        max_length=100,
+        null=False,
+        unique=True,
+    )
     car = models.ForeignKey(
         Car,
         verbose_name="Автомобиль",

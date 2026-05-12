@@ -24,11 +24,12 @@ import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
+import { dateInputValue, formatTimeRange } from "../../i18n/format";
 import { AssignmentModal } from "../manager-bookings/AssignmentModal";
 
 type TFn = (key: string, options?: Record<string, unknown>) => string;
 
-const today = new Date().toISOString().slice(0, 10);
+const today = dateInputValue();
 const defaultScheduleHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 const statusOptions: BookingStatus[] = [
   "draft",
@@ -432,17 +433,6 @@ function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
     : t("booking.washersUnassigned");
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
 }
 
 function deriveScheduleHours(schedule: ManagerScheduleDay): number[] {

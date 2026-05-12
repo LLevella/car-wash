@@ -72,7 +72,9 @@ export function RegisterPage() {
     } catch (error) {
       if (error instanceof ApiError) {
         applyFieldErrors(error, setError);
+        return;
       }
+      setError("root", { message: t("api.errors.requestFailed") });
     }
   }
 
@@ -152,13 +154,17 @@ function applyFieldErrors(error: ApiError, setError: UseFormSetError<RegisterFor
     return;
   }
 
+  let handledField = false;
   for (const [field, messages] of Object.entries(fieldErrors)) {
     if ((REGISTER_FIELDS as readonly string[]).includes(field)) {
+      handledField = true;
       setError(field as (typeof REGISTER_FIELDS)[number], {
         message: messages.join(" "),
       });
     }
   }
 
-  setError("root", { message: error.message });
+  if (!handledField) {
+    setError("root", { message: error.message });
+  }
 }

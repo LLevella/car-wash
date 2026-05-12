@@ -39,8 +39,8 @@ export function LoginPage() {
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
     defaultValues: {
-      username: "demo_manager",
-      password: "password",
+      username: "",
+      password: "",
     },
   });
   const fromPath = readRedirectPath(location.state);
@@ -52,7 +52,9 @@ export function LoginPage() {
     } catch (error) {
       if (error instanceof ApiError) {
         applyFieldErrors(error, setError);
+        return;
       }
+      setError("root", { message: t("api.errors.requestFailed") });
     }
   }
 
@@ -111,13 +113,17 @@ function applyFieldErrors(error: ApiError, setError: UseFormSetError<LoginForm>)
     return;
   }
 
+  let handledField = false;
   for (const [field, messages] of Object.entries(fieldErrors)) {
     if (field === "username" || field === "password") {
+      handledField = true;
       setError(field, { message: messages.join(" ") });
     }
   }
 
-  setError("root", { message: error.message });
+  if (!handledField) {
+    setError("root", { message: error.message });
+  }
 }
 
 function readRedirectPath(state: unknown) {

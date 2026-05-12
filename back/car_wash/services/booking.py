@@ -22,6 +22,25 @@ class BookingError(ValueError):
     """Raised when a booking operation cannot be completed."""
 
 
+CHANGEABLE_BOOKING_STATUSES = {
+    Booking.Status.PENDING,
+    Booking.Status.CONFIRMED,
+}
+
+
+def _validate_booking_can_change(*, booking: Booking) -> None:
+    if booking.status not in CHANGEABLE_BOOKING_STATUSES:
+        raise BookingError("Эту запись уже нельзя изменить.")
+
+    if booking.starts_at <= timezone.now():
+        raise BookingError("Прошедшую или начавшуюся запись нельзя изменить.")
+
+
+def _validate_starts_at_in_future(starts_at) -> None:
+    if starts_at <= timezone.now():
+        raise BookingError("Время записи должно быть в будущем.")
+
+
 def _record_audit(*, actor, action, entity, context=None):
     """Persist an audit event next to the domain change. Always called
     inside an active transaction so the audit row is committed atomically
@@ -64,6 +83,14 @@ def _lock_station(wash_station: WashStation) -> None:
     )
 
 
+def _lock_booking(booking: Booking) -> Booking:
+    return (
+        Booking.objects.select_for_update()
+        .select_related("car", "car__carType", "wash_station", "wash_type")
+        .get(pk=booking.pk)
+    )
+
+
 def create_booking(
     *,
     customer: Customer,
@@ -76,6 +103,7 @@ def create_booking(
     actor=None,
 ) -> Booking:
     starts_at = _make_aware(starts_at)
+    _validate_starts_at_in_future(starts_at)
     _validate_customer_car(customer=customer, car=car)
     quote = build_pricing_quote(
         car_type=car.carType,
@@ -132,11 +160,10 @@ def create_booking(
 
 
 def cancel_booking(*, booking: Booking, actor=None) -> Booking:
-    if booking.status == Booking.Status.COMPLETED:
-        raise BookingError("Завершенную запись нельзя отменить.")
-
-    previous_status = booking.status
     with transaction.atomic():
+        booking = _lock_booking(booking)
+        _validate_booking_can_change(booking=booking)
+        previous_status = booking.status
         booking.status = Booking.Status.CANCELLED
         booking.save(update_fields=["status", "updated_at"])
         _record_audit(
@@ -162,16 +189,19 @@ def reschedule_booking(
     actor=None,
 ) -> Booking:
     starts_at = _make_aware(starts_at)
-    previous_starts_at = booking.starts_at
-    previous_ends_at = booking.ends_at
-    quote = build_pricing_quote(
-        car_type=booking.car.carType,
-        wash_type=booking.wash_type,
-        wash_station=booking.wash_station,
-    )
-    ends_at = starts_at + timedelta(minutes=quote.duration_minutes)
 
     with transaction.atomic():
+        booking = _lock_booking(booking)
+        _validate_booking_can_change(booking=booking)
+        _validate_starts_at_in_future(starts_at)
+        previous_starts_at = booking.starts_at
+        previous_ends_at = booking.ends_at
+        quote = build_pricing_quote(
+            car_type=booking.car.carType,
+            wash_type=booking.wash_type,
+            wash_station=booking.wash_station,
+        )
+        ends_at = starts_at + timedelta(minutes=quote.duration_minutes)
         _lock_station(booking.wash_station)
         selected_box, selected_washers = _select_resources(
             wash_station=booking.wash_station,
@@ -187,8 +217,6 @@ def reschedule_booking(
         booking.cost = quote.cost
         booking.down_payment = quote.down_payment
         booking.residual = quote.residual
-        if booking.status == Booking.Status.CANCELLED:
-            booking.status = Booking.Status.PENDING
         booking.save(
             update_fields=[
                 "starts_at",
@@ -197,7 +225,6 @@ def reschedule_booking(
                 "cost",
                 "down_payment",
                 "residual",
-                "status",
                 "updated_at",
             ]
         )
@@ -374,7 +401,9 @@ def _select_resources(
     else:
         selected_box_id = wash_box.id
 
-    if washers:
+    if washers is not None:
+        if not washers:
+            raise BookingError("Укажите хотя бы одного мойщика.")
         selected_washer_ids = [washer.id for washer in washers]
         if not set(selected_washer_ids).issubset(available_washer_ids):
             raise BookingError("Один или несколько мойщиков недоступны на это время.")

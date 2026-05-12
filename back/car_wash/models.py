@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from cars.models import CarType
@@ -160,6 +160,35 @@ class WasherShift(models.Model):
             raise ValidationError(
                 {"ends_at": "Окончание смены должно быть позже начала."}
             )
+        if not (self.is_active and self.washer_id and self.starts_at and self.ends_at):
+            return
+
+        overlapping_shifts = WasherShift.objects.filter(
+            washer_id=self.washer_id,
+            is_active=True,
+            starts_at__lt=self.ends_at,
+            ends_at__gt=self.starts_at,
+        )
+        if self.pk:
+            overlapping_shifts = overlapping_shifts.exclude(pk=self.pk)
+        if transaction.get_connection().in_atomic_block:
+            overlapping_shifts = overlapping_shifts.select_for_update()
+        if overlapping_shifts.exists():
+            raise ValidationError(
+                {
+                    "__all__": (
+                        "У мойщика уже есть активная смена, пересекающаяся "
+                        "с этим временем."
+                    )
+                }
+            )
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            if self.washer_id:
+                list(Washer.objects.select_for_update().filter(pk=self.washer_id))
+            self.full_clean()
+            return super().save(*args, **kwargs)
 
     class Meta:
         constraints = [

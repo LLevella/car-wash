@@ -5,9 +5,8 @@ import { isSupportedLanguage, supportedLanguages } from "../i18n";
 
 export function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
-  const current = isSupportedLanguage(i18n.resolvedLanguage ?? "")
-    ? i18n.resolvedLanguage!
-    : "ru";
+  const resolvedLanguage = i18n.resolvedLanguage ?? "";
+  const current = isSupportedLanguage(resolvedLanguage) ? resolvedLanguage : "ru";
 
   return (
     <label className="language-switcher">
@@ -15,7 +14,9 @@ export function LanguageSwitcher() {
       <span className="language-switcher__label">{t("common.language.label")}</span>
       <select
         aria-label={t("common.language.label")}
-        onChange={(event) => void i18n.changeLanguage(event.target.value)}
+        onChange={(event) => {
+          void i18n.changeLanguage(event.target.value);
+        }}
         value={current}
       >
         {supportedLanguages.map((code) => (

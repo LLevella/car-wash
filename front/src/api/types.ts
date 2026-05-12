@@ -60,7 +60,7 @@ export type CurrentCustomer = {
   name: string;
   phone_number: string;
   user_id: number | null;
-  car: CustomerCar;
+  car: CustomerCar | null;
 };
 
 export type WashType = {

@@ -6,6 +6,7 @@ import type { Booking } from "../../api/types";
 import { Button } from "../../components/Button";
 import { SelectField } from "../../components/Field";
 import { Modal } from "../../components/Modal";
+import { formatTimeRange } from "../../i18n/format";
 
 type ResourceOption = {
   id: number;
@@ -155,15 +156,4 @@ function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
     : t("managerBookings.washersUnassigned");
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
 }

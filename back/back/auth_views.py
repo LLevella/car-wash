@@ -11,7 +11,10 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 
 from back.api import error_response, success_response
 from car_wash.permissions import (
@@ -36,6 +39,8 @@ class CurrentUserView(APIView):
 @method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
     permission_classes = (AllowAny,)
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "auth_login"
 
     def post(self, request):
         username = (request.data.get("username") or "").strip()
@@ -77,7 +82,10 @@ class RegisterView(APIView):
     in so the SPA can keep navigating without a second round-trip."""
 
     permission_classes = (AllowAny,)
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "auth_register"
 
+    @extend_schema(responses={201: OpenApiTypes.OBJECT})
     def post(self, request):
         username = (request.data.get("username") or "").strip()
         password = request.data.get("password") or ""
@@ -132,6 +140,15 @@ class RegisterView(APIView):
                     phoneNumber=phone_number,
                 )
         except IntegrityError:
+            if Customer.objects.filter(phoneNumber=phone_number).exists():
+                return error_response(
+                    "Этот телефон уже зарегистрирован.",
+                    field_errors={
+                        "phone_number": ["Этот телефон уже зарегистрирован."],
+                    },
+                    code="validation_error",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
             return error_response(
                 "Этот username уже занят.",
                 field_errors={"username": ["Этот username уже занят."]},

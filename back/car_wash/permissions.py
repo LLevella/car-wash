@@ -23,7 +23,6 @@ def is_admin_user(user):
         and user.is_authenticated
         and (
             user.is_superuser
-            or user.is_staff
             or user_has_group(user, ADMIN_GROUP)
         )
     )

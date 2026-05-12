@@ -17,12 +17,13 @@ import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
+import { dateInputValue, formatMoney, formatTimeRange } from "../../i18n/format";
 import { AssignmentModal } from "./AssignmentModal";
 
 type StatusFilter = BookingStatus | "all";
 type TFn = (key: string, options?: Record<string, unknown>) => string;
 
-const today = new Date().toISOString().slice(0, 10);
+const today = dateInputValue();
 const statusOptions: BookingStatus[] = [
   "draft",
   "pending",
@@ -405,28 +406,4 @@ function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
     : t("managerBookings.washersUnassigned");
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
-}
-
-function formatMoney(value: string) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return value;
-  }
-
-  return new Intl.NumberFormat("ru-RU", {
-    currency: "RUB",
-    style: "currency",
-  }).format(amount);
 }

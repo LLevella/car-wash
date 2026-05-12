@@ -10,6 +10,7 @@ car-wash-env/
 
 # Django/local runtime
 .env
+*.sqlite3
 *.sqlite3-journal
 
 # Coverage and test artifacts

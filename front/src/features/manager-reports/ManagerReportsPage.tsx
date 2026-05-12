@@ -9,10 +9,11 @@ import type { ManagerReports, Station } from "../../api/types";
 import { Button } from "../../components/Button";
 import { InputField, SelectField } from "../../components/Field";
 import { Toolbar } from "../../components/Toolbar";
+import { dateInputValue, formatMoney } from "../../i18n/format";
 
 type TFn = (key: string, options?: Record<string, unknown>) => string;
 
-const today = new Date().toISOString().slice(0, 10);
+const today = dateInputValue();
 
 export function ManagerReportsPage() {
   const { t } = useTranslation();
@@ -170,17 +171,6 @@ function ReportsView({ reports, t }: { reports: ManagerReports; t: TFn }) {
 
 function stationLabel(station: Station) {
   return station.address ? `${station.name}, ${station.address}` : station.name;
-}
-
-function formatMoney(value: string) {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) {
-    return value;
-  }
-  return new Intl.NumberFormat("ru-RU", {
-    currency: "RUB",
-    style: "currency",
-  }).format(amount);
 }
 
 function formatMinutes(minutes: number, t: TFn) {

@@ -206,7 +206,6 @@ def _get_available_washers(
         ends_at__gte=ends_at,
     ).values_list("washer_id", flat=True)
     occupied_assignments = BookingAssignment.objects.filter(
-        booking__wash_station=wash_station,
         booking__status__in=ACTIVE_BOOKING_STATUSES,
         **{
             "booking__starts_at__lt": ends_at,

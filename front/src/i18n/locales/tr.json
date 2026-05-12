@@ -119,6 +119,12 @@
       "phoneRequired": "Telefon numarası girin"
     }
   },
+  "api": {
+    "errors": {
+      "requestFailed": "İstek başarısız oldu.",
+      "validationFailed": "Form alanlarını kontrol edin."
+    }
+  },
   "booking": {
     "newTitle": "Yeni rezervasyon",
     "myTitle": "Rezervasyonlarım",
@@ -161,7 +167,9 @@
     "rescheduleCantReschedule": "Bu rezervasyon artık yeniden planlanamaz.",
     "noCarsTitle": "Henüz aracınız yok. Rezervasyon yapmak için bir araç ekleyin.",
     "goToCars": "Araçlarıma git",
-    "selectParameters": "Rezervasyon parametrelerini seçin."
+    "selectParameters": "Rezervasyon parametrelerini seçin.",
+    "stationFallback": "İstasyon {{id}}",
+    "serviceFallback": "Hizmet {{id}}"
   },
   "myCars": {
     "title": "Araçlarım",

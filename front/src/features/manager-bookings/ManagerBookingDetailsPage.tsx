@@ -25,6 +25,12 @@ import { Button } from "../../components/Button";
 import { PaymentBadge } from "../../components/PaymentBadge";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Toolbar } from "../../components/Toolbar";
+import {
+  formatDate,
+  formatDateTime,
+  formatMoney,
+  formatTimeRange,
+} from "../../i18n/format";
 import { AssignmentModal } from "./AssignmentModal";
 
 type TFn = (key: string, options?: Record<string, unknown>) => string;
@@ -372,16 +378,6 @@ function ContextSummary({ event }: { event: AuditEvent }) {
   return null;
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
 function uniqueWashers(
   shifts: Array<{ washer: number; washer_name: string }>,
   bookings: Booking[],
@@ -436,36 +432,4 @@ function washerNames(booking: Booking, t: TFn) {
   return booking.washers.length
     ? booking.washers.map((washer) => washer.name).join(", ")
     : t("managerBookings.washersUnassigned");
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function formatTimeRange(startsAt: string, endsAt: string) {
-  return `${formatTime(startsAt)}-${formatTime(endsAt)}`;
-}
-
-function formatMoney(value: string) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return value;
-  }
-
-  return new Intl.NumberFormat("ru-RU", {
-    currency: "RUB",
-    style: "currency",
-  }).format(amount);
 }

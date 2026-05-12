@@ -29,11 +29,11 @@ consolidated in
 
 ### Stack
 
-- Python 3.9-3.11 recommended for Django 4.1.x
-- Django 4.1
-- Django REST Framework 3.14
-- djangorestframework-jsonapi 6.0
-- django-filter 22
+- Python 3.10-3.13 recommended for Django 5.2 LTS
+- Django 5.2 LTS
+- Django REST Framework 3.17
+- djangorestframework-jsonapi 8.1
+- django-filter 25
 - psycopg2-binary for PostgreSQL deployments
 - SQLite for development; PostgreSQL is supported for production via `DATABASE_URL`
 
@@ -58,7 +58,7 @@ car-wash/
 │   ├── personal/          # washers, stations, shifts
 │   ├── main/              # legacy Schedule, gradually replaced by Booking
 │   ├── manage.py
-│   └── db.sqlite3
+│   └── db.sqlite3            # local runtime file, ignored by git
 ├── docs/
 │   └── full-project-plan.md
 ├── front/                 # Vite + React + TypeScript frontend
@@ -75,7 +75,7 @@ car-wash/
 
 ### Setup
 
-Python 3.9-3.11 is recommended for this Django 4.1.x project.
+Python 3.10-3.13 is recommended for this Django 5.2 LTS project.
 
 Single-container demo (frontend + backend + seeded data, no extra
 services):
@@ -130,6 +130,8 @@ pip install -r requirements.txt
 
 # 4. Apply migrations
 cd back
+export DJANGO_DEBUG=true
+export DJANGO_SECRET_KEY="local-dev-secret-key-change-me"
 python manage.py migrate
 
 # 5. Create an admin user
@@ -200,21 +202,23 @@ in your shell, process manager, container, or hosting platform.
 
 | Variable | Purpose | Default |
 | -------- | ------- | ------- |
-| `DJANGO_SECRET_KEY` | Django secret key | development-only fallback |
-| `DJANGO_DEBUG` | Enables debug mode | `true` |
+| `DJANGO_SECRET_KEY` | Django secret key | required outside debug/test |
+| `DJANGO_DEBUG` | Enables debug mode | `false` outside tests |
 | `DJANGO_ALLOWED_HOSTS` | Comma-separated allowed hosts | local hosts in debug |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated CSRF trusted origins | empty |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | Comma-separated origins allowed to call the API from a separate frontend host | empty |
 | `DJANGO_CORS_ALLOW_CREDENTIALS` | Allows session cookies on CORS requests | `true` when CORS origins are set |
 | `VITE_API_BASE_URL` | Frontend build-time API origin. Leave empty for same-origin `/api/` | empty |
 | `DATABASE_URL` | Database URL. Supports SQLite and PostgreSQL | `back/db.sqlite3` |
-| `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `false` |
+| `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `not DEBUG` |
 | `DJANGO_SESSION_COOKIE_SECURE` | Secure session cookie flag | `not DEBUG` |
 | `DJANGO_CSRF_COOKIE_SECURE` | Secure CSRF cookie flag | `not DEBUG` |
-| `DJANGO_SECURE_HSTS_SECONDS` | HSTS max age | `0` |
-| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | Include subdomains in HSTS | `false` |
+| `DJANGO_SECURE_HSTS_SECONDS` | HSTS max age | `31536000` when `not DEBUG`, else `0` |
+| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | Include subdomains in HSTS | `not DEBUG` |
 | `DJANGO_SECURE_HSTS_PRELOAD` | Enable HSTS preload flag | `false` |
 | `DJANGO_SECURE_PROXY_SSL_HEADER` | Trust `X-Forwarded-Proto: https` | `false` |
+| `DRF_AUTH_LOGIN_THROTTLE_RATE` | Rate limit for login attempts | `20/min` |
+| `DRF_AUTH_REGISTER_THROTTLE_RATE` | Rate limit for registrations | `5/hour` |
 
 PostgreSQL example:
 
@@ -438,11 +442,11 @@ Car Wash - backend на Django + Django REST Framework для записи кл�
 
 ### Стек
 
-- Python 3.9-3.11 рекомендуется для Django 4.1.x
-- Django 4.1
-- Django REST Framework 3.14
-- djangorestframework-jsonapi 6.0
-- django-filter 22
+- Python 3.10-3.13 рекомендуется для Django 5.2 LTS
+- Django 5.2 LTS
+- Django REST Framework 3.17
+- djangorestframework-jsonapi 8.1
+- django-filter 25
 - psycopg2-binary для PostgreSQL-деплоев
 - SQLite для разработки; PostgreSQL поддержан для production через `DATABASE_URL`
 
@@ -467,7 +471,7 @@ car-wash/
 │   ├── personal/          # мойщики, станции, смены
 │   ├── main/              # legacy Schedule, постепенно заменяется Booking
 │   ├── manage.py
-│   └── db.sqlite3
+│   └── db.sqlite3            # локальный runtime-файл, игнорируется git
 ├── docs/
 │   └── full-project-plan.md
 ├── front/                 # frontend на Vite + React + TypeScript
@@ -484,7 +488,7 @@ car-wash/
 
 ### Установка и запуск
 
-Для проекта на Django 4.1.x рекомендуется Python 3.9-3.11.
+Для проекта на Django 5.2 LTS рекомендуется Python 3.10-3.13.
 
 Быстрый запуск всей системы через Docker:
 
@@ -528,6 +532,8 @@ pip install -r requirements.txt
 
 # 4. Применить миграции
 cd back
+export DJANGO_DEBUG=true
+export DJANGO_SECRET_KEY="local-dev-secret-key-change-me"
 python manage.py migrate
 
 # 5. Создать суперпользователя для админки
@@ -598,21 +604,23 @@ shell, process manager, container или на hosting platform.
 
 | Переменная | Назначение | Значение по умолчанию |
 | ---------- | ---------- | --------------------- |
-| `DJANGO_SECRET_KEY` | Django secret key | development-only fallback |
-| `DJANGO_DEBUG` | Включает debug mode | `true` |
+| `DJANGO_SECRET_KEY` | Django secret key | required outside debug/test |
+| `DJANGO_DEBUG` | Включает debug mode | `false` outside tests |
 | `DJANGO_ALLOWED_HOSTS` | Hosts через запятую | local hosts в debug |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | CSRF trusted origins через запятую | empty |
 | `DJANGO_CORS_ALLOWED_ORIGINS` | Origins, которым разрешены API-запросы с отдельного frontend host | empty |
 | `DJANGO_CORS_ALLOW_CREDENTIALS` | Разрешает session cookies в CORS-запросах | `true`, если заданы CORS origins |
 | `VITE_API_BASE_URL` | Build-time API origin для frontend. Оставьте пустым для same-origin `/api/` | empty |
 | `DATABASE_URL` | URL базы. Поддерживает SQLite и PostgreSQL | `back/db.sqlite3` |
-| `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `false` |
+| `DJANGO_SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS | `not DEBUG` |
 | `DJANGO_SESSION_COOKIE_SECURE` | Secure session cookie flag | `not DEBUG` |
 | `DJANGO_CSRF_COOKIE_SECURE` | Secure CSRF cookie flag | `not DEBUG` |
-| `DJANGO_SECURE_HSTS_SECONDS` | HSTS max age | `0` |
-| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | Include subdomains in HSTS | `false` |
+| `DJANGO_SECURE_HSTS_SECONDS` | HSTS max age | `31536000` when `not DEBUG`, else `0` |
+| `DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS` | Include subdomains in HSTS | `not DEBUG` |
 | `DJANGO_SECURE_HSTS_PRELOAD` | Enable HSTS preload flag | `false` |
 | `DJANGO_SECURE_PROXY_SSL_HEADER` | Trust `X-Forwarded-Proto: https` | `false` |
+| `DRF_AUTH_LOGIN_THROTTLE_RATE` | Лимит попыток входа | `20/min` |
+| `DRF_AUTH_REGISTER_THROTTLE_RATE` | Лимит регистраций | `5/hour` |
 
 Пример PostgreSQL:
 
