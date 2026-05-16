@@ -42,7 +42,11 @@
     {% csrf_token %}
     <input name="next" type="hidden" value="{{ request.get_full_path }}">
     <label for="admin-language-select">{% translate 'Language' %}</label>
-    <select id="admin-language-select" name="language">
+    <select
+      id="admin-language-select"
+      name="language"
+      onchange="this.form.submit()"
+    >
       {% for language in languages %}
         <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
           {{ language.name_local }}

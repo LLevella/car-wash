@@ -2685,15 +2685,22 @@ class AdminLanguageSwitcherTests(TestCase):
 
         self.assertContains(response, 'action="/i18n/setlang/"')
         self.assertContains(response, 'name="language"')
+        self.assertContains(response, 'onchange="this.form.submit()"')
         self.assertContains(response, 'value="ru" selected')
         self.assertContains(response, 'value="en"')
 
-    def test_admin_language_switch_sets_language_cookie(self):
+    def test_admin_language_switch_updates_rendered_admin_chrome(self):
         response = self.client.post(
             "/i18n/setlang/",
             {"language": "en", "next": "/admin/"},
+            follow=True,
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/admin/")
-        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "en")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            self.client.cookies[settings.LANGUAGE_COOKIE_NAME].value,
+            "en",
+        )
+        self.assertContains(response, "Site administration")
+        self.assertContains(response, 'value="en" selected')
+        self.assertNotContains(response, "Администрирование сайта")

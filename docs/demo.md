@@ -102,6 +102,7 @@ The seeded SQLite file is baked into the image. To roll back to a clean
 state, `docker stop` the container and `docker run` it again from the
 same image — the image itself never mutates.
 
-If you mount a volume on `/app/back/db.sqlite3` (not the default), the
-entrypoint re-seeds the data on a cold database the first time the
-container starts.
+On every start, the entrypoint re-runs migrations plus the idempotent
+demo seed commands. This keeps mounted SQLite files usable and restores
+the documented `demo_admin` / `password` credentials even after a stale
+demo run.

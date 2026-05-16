@@ -293,6 +293,9 @@
     "washerLabel": "Yıkayıcı #{{id}}",
     "noBookings": "Bu dönemde rezervasyon yok.",
     "noBoxes": "Bu dönemde boks aktivitesi yok.",
-    "noWashers": "Bu dönemde yıkayıcı aktivitesi yok."
+    "noWashers": "Bu dönemde yıkayıcı aktivitesi yok.",
+    "errors": {
+      "toBeforeFrom": "Başlangıç tarihi bitiş tarihinden sonra olamaz."
+    }
   }
 }

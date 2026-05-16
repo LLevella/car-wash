@@ -293,6 +293,9 @@
     "washerLabel": "Washer #{{id}}",
     "noBookings": "No bookings for this period.",
     "noBoxes": "No bay activity for this period.",
-    "noWashers": "No washer activity for this period."
+    "noWashers": "No washer activity for this period.",
+    "errors": {
+      "toBeforeFrom": "From date must be on or before To date."
+    }
   }
 }

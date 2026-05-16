@@ -300,6 +300,27 @@ describe("App", () => {
     });
   });
 
+  it("validates manager reports date range in the selected English language", async () => {
+    await i18n.changeLanguage("en");
+
+    renderRoute("/manager/reports");
+
+    await screen.findByRole("heading", { level: 1, name: "Reports" });
+    fireEvent.change(screen.getByLabelText("From"), {
+      target: { value: "2099-05-10" },
+    });
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: "2099-05-08" },
+    });
+
+    expect(
+      screen.getByText("From date must be on or before To date."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/date_to/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/раньше/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh" })).toBeDisabled();
+  });
+
   it("validates car form input", async () => {
     const user = userEvent.setup();
 

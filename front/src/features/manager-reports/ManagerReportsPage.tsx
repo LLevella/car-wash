@@ -20,6 +20,10 @@ export function ManagerReportsPage() {
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo] = useState(today);
+  const dateRangeError =
+    dateFrom && dateTo && dateTo < dateFrom
+      ? t("managerReports.errors.toBeforeFrom")
+      : null;
 
   const stationsQuery = useQuery({
     queryKey: ["dictionaries", "stations"],
@@ -40,18 +44,21 @@ export function ManagerReportsPage() {
         date_to: dateTo,
         station: selectedStationId ?? undefined,
       }),
-    enabled: Boolean(dateFrom),
+    enabled: Boolean(dateFrom) && !dateRangeError,
   });
 
   const stations = stationsQuery.data ?? [];
-  const reports = reportsQuery.data;
-  const error = reportsQuery.error instanceof Error ? reportsQuery.error.message : null;
+  const reports = dateRangeError ? undefined : reportsQuery.data;
+  const apiError =
+    reportsQuery.error instanceof Error ? reportsQuery.error.message : null;
+  const error = dateRangeError ?? apiError;
 
   return (
     <section className="page">
       <Toolbar
         actions={
           <Button
+            disabled={Boolean(dateRangeError)}
             icon={<RefreshCw size={18} />}
             onClick={() => void reportsQuery.refetch()}
           >
