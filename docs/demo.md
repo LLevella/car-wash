@@ -71,8 +71,11 @@ populated, and the reports page shows real numbers immediately.
 | `demo_manager`  | `password` | manager  |
 | `demo_admin`    | `password` | admin    |
 
-The login form pre-fills `demo_manager`; switch the username to log in
-as someone else.
+Use `demo_manager` for the React manager workspace. Use `demo_admin` for
+`/admin/`; it is the Django superuser seeded for the admin site.
+
+The Django admin header includes a Russian/English language selector. The
+default admin language is Russian.
 
 ### Self-registration
 

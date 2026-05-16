@@ -1,0 +1,59 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  #user-tools .admin-language-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 0 4px;
+  }
+
+  #user-tools .admin-language-form label {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+  }
+
+  #user-tools .admin-language-form select {
+    max-width: 9rem;
+    min-height: 1.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block userlinks %}
+  {% if site_url %}
+    <a href="{{ site_url }}">{% translate 'View site' %}</a> /
+  {% endif %}
+  {% if user.is_active and user.is_staff %}
+    {% url 'django-admindocs-docroot' as docsroot %}
+    {% if docsroot %}
+      <a href="{{ docsroot }}">{% translate 'Documentation' %}</a> /
+    {% endif %}
+  {% endif %}
+  {% if user.has_usable_password %}
+    <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
+  {% endif %}
+  {% get_current_language as LANGUAGE_CODE %}
+  {% get_available_languages as LANGUAGES %}
+  {% get_language_info_list for LANGUAGES as languages %}
+  <form class="admin-language-form" action="{% url 'set_language' %}" method="post">
+    {% csrf_token %}
+    <input name="next" type="hidden" value="{{ request.get_full_path }}">
+    <label for="admin-language-select">{% translate 'Language' %}</label>
+    <select id="admin-language-select" name="language">
+      {% for language in languages %}
+        <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
+          {{ language.name_local }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit">{% translate 'Change' %}</button>
+  </form> /
+  <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+    {% csrf_token %}
+    <button type="submit">{% translate 'Log out' %}</button>
+  </form>
+  {% include "admin/color_theme_toggle.html" %}
+{% endblock %}

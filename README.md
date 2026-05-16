@@ -149,8 +149,10 @@ After startup:
 
 The backend container applies migrations automatically and seeds demo data by
 default. Demo users are `demo_customer` / `password`, `demo_manager` /
-`password`, and `demo_admin` / `password`. The SQLite database is stored in the
-`backend-data` Docker volume. To reset the demo database:
+`password`, and `demo_admin` / `password`. Use `demo_admin` for `/admin/`;
+`demo_manager` is for the manager workspace and manager API flows. The SQLite
+database is stored in the `backend-data` Docker volume. To reset the demo
+database:
 
 ```bash
 docker compose down -v
@@ -229,13 +231,14 @@ npm run test:e2e
 
 Demo users:
 
-- `demo_customer` / `password`
-- `demo_manager` / `password`
-- `demo_admin` / `password`
+- `demo_customer` / `password` - customer workspace
+- `demo_manager` / `password` - manager workspace and manager API
+- `demo_admin` / `password` - Django admin superuser and manager API
 
 Local authentication:
 
-- Use `/admin/` or the DRF browsable API login for session authentication.
+- Use `/admin/` with `demo_admin` / `password` for Django admin access.
+- Use the DRF browsable API login for API session authentication.
 - `demo_customer` can access customer booking endpoints.
 - `demo_manager` and `demo_admin` can access manager endpoints.
 - SPA clients can use JSON session auth endpoints under `/api/auth/`.
@@ -395,8 +398,9 @@ The backend uses Django users and groups:
   `Customer.user` profile.
 - `manager` - can use manager endpoints, assign resources, manage shifts, and
   change booking statuses.
-- `admin` - has manager-level API access; Django staff and superusers are also
-  treated as admins.
+- `admin` - has manager-level API access; Django superusers and users in the
+  `admin` group are treated as admins. `is_staff` only controls Django admin
+  site access.
 
 Availability lookup remains public. Booking endpoints require an authenticated
 customer, manager, or admin. Manager endpoints require a manager or admin.
@@ -596,8 +600,10 @@ docker compose up --build
 
 Backend-контейнер автоматически применяет миграции и по умолчанию создает
 демо-данные. Демо-пользователи: `demo_customer` / `password`,
-`demo_manager` / `password`, `demo_admin` / `password`. SQLite-база хранится в
-Docker volume `backend-data`. Чтобы сбросить demo database:
+`demo_manager` / `password`, `demo_admin` / `password`. Для `/admin/`
+используйте `demo_admin`; `demo_manager` предназначен для интерфейса менеджера
+и manager API. SQLite-база хранится в Docker volume `backend-data`. Чтобы
+сбросить demo database:
 
 ```bash
 docker compose down -v
@@ -676,13 +682,14 @@ npm run test:e2e
 
 Демо-пользователи:
 
-- `demo_customer` / `password`
-- `demo_manager` / `password`
-- `demo_admin` / `password`
+- `demo_customer` / `password` - клиентский интерфейс
+- `demo_manager` / `password` - интерфейс менеджера и manager API
+- `demo_admin` / `password` - суперпользователь Django admin и manager API
 
 Локальная аутентификация:
 
-- Для session auth используйте `/admin/` или login в browsable API DRF.
+- Для Django admin используйте `/admin/` с `demo_admin` / `password`.
+- Для API session auth используйте login в browsable API DRF.
 - `demo_customer` может работать с клиентскими endpoints бронирования.
 - `demo_manager` и `demo_admin` могут работать с manager endpoints.
 - SPA-клиенты могут использовать JSON session auth endpoints под `/api/auth/`.
@@ -842,8 +849,9 @@ Backend использует пользователей и группы Django:
   профилем `Customer.user`.
 - `manager` - может использовать manager endpoints, назначать ресурсы,
   управлять сменами и менять статусы записей.
-- `admin` - имеет доступ уровня manager; Django staff и superuser также
-  считаются администраторами.
+- `admin` - имеет доступ уровня manager; Django superuser и пользователи в
+  группе `admin` считаются администраторами. `is_staff` управляет только
+  доступом к Django admin site.
 
 Расчет доступности остается публичным. Booking endpoints требуют
 аутентифицированного клиента, менеджера или администратора. Manager endpoints

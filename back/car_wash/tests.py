@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from unittest import mock
 
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group, User
 from django.conf import settings
 from django.core.cache import cache
@@ -2650,3 +2651,49 @@ class DemoDataCommandTests(TestCase):
             ).exists()
         )
         self.assertIn("Demo data created", out.getvalue())
+
+    def test_seed_demo_data_resets_documented_demo_passwords(self):
+        User.objects.create_user(
+            username="demo_admin",
+            password="stale-password",
+            is_staff=False,
+            is_superuser=False,
+        )
+
+        call_command("seed_demo_data", stdout=StringIO())
+
+        demo_admin = User.objects.get(username="demo_admin")
+        self.assertTrue(demo_admin.check_password("password"))
+        self.assertTrue(demo_admin.is_staff)
+        self.assertTrue(demo_admin.is_superuser)
+        self.assertIsNotNone(
+            authenticate(username="demo_admin", password="password")
+        )
+
+
+class AdminLanguageSwitcherTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username="demo_admin",
+            email="demo-admin@example.com",
+            password="password",
+        )
+        self.client.force_login(self.admin)
+
+    def test_admin_header_contains_language_switcher(self):
+        response = self.client.get("/admin/")
+
+        self.assertContains(response, 'action="/i18n/setlang/"')
+        self.assertContains(response, 'name="language"')
+        self.assertContains(response, 'value="ru" selected')
+        self.assertContains(response, 'value="en"')
+
+    def test_admin_language_switch_sets_language_cookie(self):
+        response = self.client.post(
+            "/i18n/setlang/",
+            {"language": "en", "next": "/admin/"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], "/admin/")
+        self.assertEqual(response.cookies[settings.LANGUAGE_COOKIE_NAME].value, "en")

@@ -149,9 +149,8 @@ class Command(BaseCommand):
         is_staff=False,
         is_superuser=False,
     ):
-        user, created = User.objects.get_or_create(username=username)
-        if created:
-            user.set_password(password)
+        user, _ = User.objects.get_or_create(username=username)
+        user.set_password(password)
         user.is_staff = is_staff
         user.is_superuser = is_superuser
         user.save()

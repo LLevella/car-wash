@@ -23,6 +23,7 @@ from back.spa import serve_spa
 urlpatterns = [
     path('health/', health_check, name='health-check'),
     path('health/ready/', readiness_check, name='readiness-check'),
+    path('i18n/', include('django.conf.urls.i18n')),
     path('admin/', admin.site.urls),
     path('api/', include('back.api_urls')),
 ]
