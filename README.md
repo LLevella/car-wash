@@ -73,6 +73,52 @@ car-wash/
 └── requirements.txt
 ```
 
+### Frontend
+
+The frontend is a Vite + React + TypeScript SPA located in `front/`. It is a
+working operations UI rather than a marketing page: customers can book a wash
+and manage their cars, while managers can operate the daily schedule.
+
+- Routing is defined in `front/src/app/router.tsx` with role-protected customer
+  and manager workspaces.
+- API access lives in `front/src/api/`; `types-generated.ts` is generated from
+  `openapi.yaml`, while `types.ts` contains the handwritten domain types used
+  by the UI.
+- Shared layout and controls live in `front/src/components/` and
+  `front/src/layouts/`.
+- Feature screens live in `front/src/features/`: auth, booking, customer cars,
+  manager bookings, schedule, shifts, resource blocks, and reports.
+- Localization lives in `front/src/i18n/` with Russian, English, and Turkish
+  translations plus shared date/time/money format helpers.
+
+Customer routes:
+
+| Route | Purpose |
+| ----- | ------- |
+| `/login` | Session login |
+| `/register` | Customer self-registration |
+| `/book` | Create a booking from available slots |
+| `/my/bookings` | Customer booking list |
+| `/my/bookings/:bookingId` | Customer booking details |
+| `/my/cars` | Customer car management |
+
+Manager routes:
+
+| Route | Purpose |
+| ----- | ------- |
+| `/manager/schedule` | Daily station schedule with assignments |
+| `/manager/bookings` | Manager booking list and filters |
+| `/manager/bookings/:bookingId` | Booking detail, status, audit, assignment |
+| `/manager/shifts` | Washer shift management |
+| `/manager/resource-blocks` | Station, bay, and washer blocks |
+| `/manager/reports` | Daily/period aggregate reports |
+
+The SPA uses cookie-based Django session authentication. Before unsafe
+requests it fetches/uses the CSRF cookie and sends `X-CSRFToken`. In
+development Vite proxies same-origin `/api` and `/health` calls to Django; in
+production the app can either be served from the same origin or configured with
+`VITE_API_BASE_URL`.
+
 ### Setup
 
 Python 3.10-3.13 is recommended for this Django 5.2 LTS project.
@@ -485,6 +531,51 @@ car-wash/
 │   └── package.json
 └── requirements.txt
 ```
+
+### Frontend
+
+Frontend - это SPA на Vite + React + TypeScript в каталоге `front/`. Это
+рабочий интерфейс, а не лендинг: клиент записывается на мойку и управляет
+автомобилями, а менеджер ведет расписание дня и ресурсы станции.
+
+- Роутинг описан в `front/src/app/router.tsx`; клиентские и менеджерские
+  разделы защищены по ролям.
+- Доступ к API находится в `front/src/api/`; `types-generated.ts` генерируется
+  из `openapi.yaml`, а `types.ts` содержит ручные доменные типы интерфейса.
+- Общие layout и controls находятся в `front/src/components/` и
+  `front/src/layouts/`.
+- Экраны фич находятся в `front/src/features/`: auth, booking, автомобили
+  клиента, manager bookings, schedule, shifts, resource blocks и reports.
+- Локализация находится в `front/src/i18n/`: русский, английский и турецкий
+  переводы плюс общие helpers для форматирования дат, времени и денег.
+
+Клиентские маршруты:
+
+| Route | Назначение |
+| ----- | ---------- |
+| `/login` | Вход по session auth |
+| `/register` | Саморегистрация клиента |
+| `/book` | Создание записи по свободным слотам |
+| `/my/bookings` | Список записей клиента |
+| `/my/bookings/:bookingId` | Детали записи клиента |
+| `/my/cars` | Управление автомобилями клиента |
+
+Маршруты менеджера:
+
+| Route | Назначение |
+| ----- | ---------- |
+| `/manager/schedule` | Дневное расписание станции с назначениями |
+| `/manager/bookings` | Список заказов и фильтры менеджера |
+| `/manager/bookings/:bookingId` | Детали заказа, статус, аудит, назначение |
+| `/manager/shifts` | Управление сменами мойщиков |
+| `/manager/resource-blocks` | Блокировки станции, боксов и мойщиков |
+| `/manager/reports` | Агрегированные отчеты за день или период |
+
+SPA использует cookie-based Django session auth. Для unsafe-запросов frontend
+получает/использует CSRF cookie и отправляет `X-CSRFToken`. В development Vite
+проксирует same-origin `/api` и `/health` в Django; в production приложение
+может работать с того же origin или через отдельный backend origin в
+`VITE_API_BASE_URL`.
 
 ### Установка и запуск
 
