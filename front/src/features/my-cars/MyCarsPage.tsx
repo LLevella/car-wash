@@ -173,7 +173,8 @@ function CarFormModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const language = i18n.resolvedLanguage ?? i18n.language;
   const open = editing !== null;
   const fallbackCarTypeId = carTypes[0]?.id ?? 0;
   const schema = useMemo(
@@ -201,11 +202,12 @@ function CarFormModal({
     };
   }, [editing, fallbackCarTypeId]);
   const {
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitted, isSubmitting },
     handleSubmit,
     register,
     reset,
     setError,
+    trigger,
   } = useForm<CarFormValues>({
     resolver: zodResolver(schema),
     defaultValues,
@@ -214,6 +216,12 @@ function CarFormModal({
   useEffect(() => {
     reset(defaultValues);
   }, [defaultValues, reset]);
+
+  useEffect(() => {
+    if (open && isSubmitted) {
+      void trigger();
+    }
+  }, [isSubmitted, language, open, trigger]);
 
   const saveMutation = useMutation({
     mutationFn: async (values: CarFormValues) => {

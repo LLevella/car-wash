@@ -1,5 +1,11 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -16,6 +22,7 @@ import { RegisterPage } from "../features/auth/RegisterPage";
 import { ManagerReportsPage } from "../features/manager-reports/ManagerReportsPage";
 import { ManagerSchedulePage } from "../features/manager-schedule/ManagerSchedulePage";
 import { MyCarsPage } from "../features/my-cars/MyCarsPage";
+import i18n from "../i18n";
 import { setTestAuthState } from "./setup";
 
 function renderRoute(path = "/book") {
@@ -212,6 +219,45 @@ describe("App", () => {
     expect(screen.getByLabelText("Тип")).toBeInTheDocument();
   });
 
+  it("opens the new car modal in the selected English language", async () => {
+    const user = userEvent.setup();
+    await i18n.changeLanguage("en");
+
+    renderRoute("/my/cars");
+    await screen.findByText("DEMO001");
+
+    await user.click(screen.getByRole("button", { name: "Add a car" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "New car" });
+    expect(within(dialog).getByLabelText("Plate")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Type")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(within(dialog).queryByText("Новый автомобиль")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Сохранить")).not.toBeInTheDocument();
+  });
+
+  it("retranslates open car modal validation errors after language changes", async () => {
+    const user = userEvent.setup();
+
+    renderRoute("/my/cars");
+    await screen.findByText("DEMO001");
+    await user.click(screen.getByRole("button", { name: "Добавить автомобиль" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Новый автомобиль" });
+    await user.click(within(dialog).getByRole("button", { name: "Сохранить" }));
+    expect(
+      await within(dialog).findByText("Укажите номер автомобиля"),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Язык"), "en");
+
+    await waitFor(() => {
+      expect(within(dialog).getByText("Enter the plate number")).toBeInTheDocument();
+    });
+    expect(within(dialog).queryByText("Укажите номер автомобиля")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "New car" })).toBeInTheDocument();
+  });
+
   it("offers a registration link from the login page", async () => {
     setTestAuthState("anonymous");
     renderRoute("/login");
@@ -267,5 +313,20 @@ describe("App", () => {
     expect(
       await within(dialog).findByText("Укажите номер автомобиля"),
     ).toBeInTheDocument();
+  });
+
+  it("opens manager assignment modal in the selected English language", async () => {
+    const user = userEvent.setup();
+    await i18n.changeLanguage("en");
+
+    renderRoute("/manager/bookings");
+
+    await user.click(await screen.findByRole("button", { name: "Assign" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Assign booking #1" });
+    expect(within(dialog).getByText("Current bay")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Save assignment" })).toBeEnabled();
+    expect(within(dialog).queryByText("Назначение заказа #1")).not.toBeInTheDocument();
+    expect(within(dialog).queryByText("Сохранить назначение")).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { UserPlus } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, type UseFormSetError } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router-dom";
@@ -29,7 +29,8 @@ const REGISTER_FIELDS = [
 ] as const;
 
 export function RegisterPage() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const language = i18n.resolvedLanguage ?? i18n.language;
   const navigate = useNavigate();
   const registerMutation = useRegisterMutation();
   const { data: session, isLoading } = useCurrentUser();
@@ -50,10 +51,11 @@ export function RegisterPage() {
     [t],
   );
   const {
-    formState: { errors },
+    formState: { errors, isSubmitted },
     handleSubmit,
     setError,
     register,
+    trigger,
   } = useForm<RegisterForm>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -64,6 +66,12 @@ export function RegisterPage() {
       phone_number: "",
     },
   });
+
+  useEffect(() => {
+    if (isSubmitted) {
+      void trigger();
+    }
+  }, [isSubmitted, language, trigger]);
 
   async function onSubmit(values: RegisterForm) {
     try {

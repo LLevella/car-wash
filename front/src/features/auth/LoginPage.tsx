@@ -1,5 +1,5 @@
 import { LogIn } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, type UseFormSetError } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -18,7 +18,8 @@ type LoginForm = {
 };
 
 export function LoginPage() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const language = i18n.resolvedLanguage ?? i18n.language;
   const location = useLocation();
   const navigate = useNavigate();
   const loginMutation = useLoginMutation();
@@ -32,10 +33,11 @@ export function LoginPage() {
     [t],
   );
   const {
-    formState: { errors },
+    formState: { errors, isSubmitted },
     handleSubmit,
     setError,
     register,
+    trigger,
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -44,6 +46,12 @@ export function LoginPage() {
     },
   });
   const fromPath = readRedirectPath(location.state);
+
+  useEffect(() => {
+    if (isSubmitted) {
+      void trigger();
+    }
+  }, [isSubmitted, language, trigger]);
 
   async function onSubmit(values: LoginForm) {
     try {
