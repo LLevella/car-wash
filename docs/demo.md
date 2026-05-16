@@ -75,7 +75,8 @@ Use `demo_manager` for the React manager workspace. Use `demo_admin` for
 `/admin/`; it is the Django superuser seeded for the admin site.
 
 The Django admin header includes a Russian/English language selector. The
-default admin language is Russian.
+default admin language is Russian; switching to English also translates the
+custom model names in the admin index.
 
 ### Self-registration
 

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class CarBrand(models.Model):
@@ -9,8 +10,8 @@ class CarBrand(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Марка авто"
-        verbose_name_plural = "Марки авто"
+        verbose_name = _("Марка авто")
+        verbose_name_plural = _("Марки авто")
 
 
 class CarModel(models.Model):
@@ -21,8 +22,8 @@ class CarModel(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Модель авто"
-        verbose_name_plural = "Модели авто"
+        verbose_name = _("Модель авто")
+        verbose_name_plural = _("Модели авто")
 
 
 class CarType(models.Model):
@@ -34,8 +35,8 @@ class CarType(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Тип авто"
-        verbose_name_plural = "Типы авто"
+        verbose_name = _("Тип авто")
+        verbose_name_plural = _("Типы авто")
 
 
 class CarDescription(models.Model):
@@ -50,5 +51,5 @@ class CarDescription(models.Model):
 
     class Meta:
         unique_together = (('carType', 'сarBrand', 'сarModel'),)
-        verbose_name = "Описание авто"
-        verbose_name_plural = "Описание авто"
+        verbose_name = _("Описание авто")
+        verbose_name_plural = _("Описание авто")

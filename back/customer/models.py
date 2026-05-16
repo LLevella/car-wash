@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.translation import gettext_lazy as _
 from cars.models import CarType
 
 
@@ -22,8 +23,8 @@ class Car(models.Model):
         return self.number
 
     class Meta:
-        verbose_name = "Автомобиль"
-        verbose_name_plural = "Автомобили"
+        verbose_name = _("Автомобиль")
+        verbose_name_plural = _("Автомобили")
 
 class Customer(models.Model):
     """Заказчик"""
@@ -55,5 +56,5 @@ class Customer(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Заказчик"
-        verbose_name_plural = "Заказчики"
+        verbose_name = _("Заказчик")
+        verbose_name_plural = _("Заказчики")

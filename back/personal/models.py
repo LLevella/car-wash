@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.utils.translation import gettext_lazy as _
 from datetime import date
 
 
@@ -13,8 +14,8 @@ class Washer(models.Model):
         return f'{self.name} {self.surname}'
 
     class Meta:
-        verbose_name = "Мойщик"
-        verbose_name_plural = "Мойщики"
+        verbose_name = _("Мойщик")
+        verbose_name_plural = _("Мойщики")
 
 
 class City(models.Model):
@@ -25,8 +26,8 @@ class City(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Город"
-        verbose_name_plural = "Города"
+        verbose_name = _("Город")
+        verbose_name_plural = _("Города")
 
 
 class District(models.Model):
@@ -37,8 +38,8 @@ class District(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Район"
-        verbose_name_plural = "Районы"
+        verbose_name = _("Район")
+        verbose_name_plural = _("Районы")
 
 
 class WashStation(models.Model):
@@ -51,8 +52,8 @@ class WashStation(models.Model):
     address = models.CharField("Адрес", max_length=200)
 
     class Meta:
-        verbose_name = "Станция мойки"
-        verbose_name_plural = "Станции мойки"
+        verbose_name = _("Станция мойки")
+        verbose_name_plural = _("Станции мойки")
 
 
 class DateType(models.Model):
@@ -66,8 +67,8 @@ class DateType(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Тип дня"
-        verbose_name_plural = "Типы дня"
+        verbose_name = _("Тип дня")
+        verbose_name_plural = _("Типы дня")
 
 
 class TimeSheet(models.Model):
@@ -82,5 +83,5 @@ class TimeSheet(models.Model):
         DateType, verbose_name="тип дня", on_delete=models.PROTECT)
 
     class Meta:
-        verbose_name = "Табель учета рабочего времени"
-        verbose_name_plural = "Учет рабочего времен"
+        verbose_name = _("Табель учета рабочего времени")
+        verbose_name_plural = _("Учет рабочего времен")

@@ -1,0 +1,151 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: car-wash\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-17 00:00+0300\n"
+"PO-Revision-Date: 2026-05-17 00:00+0300\n"
+"Last-Translator: Codex <codex@openai.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Автомобиль"
+msgstr "Car"
+
+msgid "Автомобили"
+msgstr "Cars"
+
+msgid "Аудит-событие"
+msgstr "Audit event"
+
+msgid "Аудит-события"
+msgstr "Audit events"
+
+msgid "Блокировка ресурса"
+msgstr "Resource block"
+
+msgid "Блокировки ресурсов"
+msgstr "Resource blocks"
+
+msgid "Бокс мойки"
+msgstr "Wash bay"
+
+msgid "Боксы мойки"
+msgstr "Wash bays"
+
+msgid "Время мойки"
+msgstr "Wash durations"
+
+msgid "Город"
+msgstr "City"
+
+msgid "Города"
+msgstr "Cities"
+
+msgid "Доступ руководителя к станции"
+msgstr "Manager station access"
+
+msgid "Доступы руководителей к станциям"
+msgstr "Manager station access"
+
+msgid "Запись на мойку"
+msgstr "Booking"
+
+msgid "Записи на мойку"
+msgstr "Bookings"
+
+msgid "Заказчик"
+msgstr "Customer"
+
+msgid "Заказчики"
+msgstr "Customers"
+
+msgid "Марка авто"
+msgstr "Car brand"
+
+msgid "Марки авто"
+msgstr "Car brands"
+
+msgid "Модель авто"
+msgstr "Car model"
+
+msgid "Модели авто"
+msgstr "Car models"
+
+msgid "Мойщик"
+msgstr "Washer"
+
+msgid "Мойщики"
+msgstr "Washers"
+
+msgid "Назначение мойщика"
+msgstr "Washer assignment"
+
+msgid "Назначения мойщиков"
+msgstr "Washer assignments"
+
+msgid "Описание авто"
+msgstr "Car descriptions"
+
+msgid "Процент аванса"
+msgstr "Down payment rate"
+
+msgid "Проценты аванса"
+msgstr "Down payment rates"
+
+msgid "Район"
+msgstr "District"
+
+msgid "Районы"
+msgstr "Districts"
+
+msgid "Расписание"
+msgstr "Schedule"
+
+msgid "Смена мойщика"
+msgstr "Washer shift"
+
+msgid "Смены мойщиков"
+msgstr "Washer shifts"
+
+msgid "Станция мойки"
+msgstr "Wash station"
+
+msgid "Станции мойки"
+msgstr "Wash stations"
+
+msgid "Стоимость мойки"
+msgstr "Wash costs"
+
+msgid "Табель учета рабочего времени"
+msgstr "Time sheet"
+
+msgid "Тип авто"
+msgstr "Car type"
+
+msgid "Тип дня"
+msgstr "Day type"
+
+msgid "Тип мойки"
+msgstr "Wash type"
+
+msgid "Типы авто"
+msgstr "Car types"
+
+msgid "Типы дня"
+msgstr "Day types"
+
+msgid "Типы мойки"
+msgstr "Wash types"
+
+msgid "Уведомление в outbox"
+msgstr "Outbox notification"
+
+msgid "Уведомления в outbox"
+msgstr "Outbox notifications"
+
+msgid "Учет рабочего времен"
+msgstr "Time sheets"

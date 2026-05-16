@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 from cars.models import CarType
 from customer.models import Car, Customer
 from personal.models import Washer, WashStation
@@ -15,8 +16,8 @@ class WashType(models.Model):
         return self.name
 
     class Meta:
-        verbose_name = "Тип мойки"
-        verbose_name_plural = "Типы мойки"
+        verbose_name = _("Тип мойки")
+        verbose_name_plural = _("Типы мойки")
 
 
 class WashDuration(models.Model):
@@ -32,8 +33,8 @@ class WashDuration(models.Model):
 
     class Meta:
         unique_together = (('carType', 'washType', 'washStation'),)
-        verbose_name = "Время мойки"
-        verbose_name_plural = "Время мойки"
+        verbose_name = _("Время мойки")
+        verbose_name_plural = _("Время мойки")
 
 
 class WashCost(models.Model):
@@ -49,8 +50,8 @@ class WashCost(models.Model):
 
     class Meta:
         unique_together = (('carType', 'washType', 'washStation'),)
-        verbose_name = "Стоимость мойки"
-        verbose_name_plural = "Стоимость мойки"
+        verbose_name = _("Стоимость мойки")
+        verbose_name_plural = _("Стоимость мойки")
 
 
 class DownPayment (models.Model):
@@ -61,8 +62,8 @@ class DownPayment (models.Model):
         verbose_name="Процент аванса", max_digits=5, decimal_places=2)
 
     class Meta:
-        verbose_name = "Процент аванса"
-        verbose_name_plural = "Проценты аванса"
+        verbose_name = _("Процент аванса")
+        verbose_name_plural = _("Проценты аванса")
 
 
 class WashBox(models.Model):
@@ -93,8 +94,8 @@ class WashBox(models.Model):
                 name="wash_box_station_active_idx",
             ),
         ]
-        verbose_name = "Бокс мойки"
-        verbose_name_plural = "Боксы мойки"
+        verbose_name = _("Бокс мойки")
+        verbose_name_plural = _("Боксы мойки")
 
 
 class ManagerStationAccess(models.Model):
@@ -130,8 +131,8 @@ class ManagerStationAccess(models.Model):
                 name="mgr_station_user_active_idx",
             ),
         ]
-        verbose_name = "Доступ руководителя к станции"
-        verbose_name_plural = "Доступы руководителей к станциям"
+        verbose_name = _("Доступ руководителя к станции")
+        verbose_name_plural = _("Доступы руководителей к станциям")
 
 
 class WasherShift(models.Model):
@@ -207,8 +208,8 @@ class WasherShift(models.Model):
                 name="shift_washer_time_idx",
             ),
         ]
-        verbose_name = "Смена мойщика"
-        verbose_name_plural = "Смены мойщиков"
+        verbose_name = _("Смена мойщика")
+        verbose_name_plural = _("Смены мойщиков")
 
 
 class Booking(models.Model):
@@ -341,8 +342,8 @@ class Booking(models.Model):
             ),
             models.Index(fields=["status"], name="booking_status_idx"),
         ]
-        verbose_name = "Запись на мойку"
-        verbose_name_plural = "Записи на мойку"
+        verbose_name = _("Запись на мойку")
+        verbose_name_plural = _("Записи на мойку")
 
 
 class BookingAssignment(models.Model):
@@ -384,8 +385,8 @@ class BookingAssignment(models.Model):
         indexes = [
             models.Index(fields=["washer"], name="assignment_washer_idx"),
         ]
-        verbose_name = "Назначение мойщика"
-        verbose_name_plural = "Назначения мойщиков"
+        verbose_name = _("Назначение мойщика")
+        verbose_name_plural = _("Назначения мойщиков")
 
 
 class ResourceBlock(models.Model):
@@ -458,8 +459,8 @@ class ResourceBlock(models.Model):
                 name="block_washer_time_idx",
             ),
         ]
-        verbose_name = "Блокировка ресурса"
-        verbose_name_plural = "Блокировки ресурсов"
+        verbose_name = _("Блокировка ресурса")
+        verbose_name_plural = _("Блокировки ресурсов")
 
 
 class NotificationOutbox(models.Model):
@@ -517,8 +518,8 @@ class NotificationOutbox(models.Model):
             ),
         ]
         ordering = ("created_at",)
-        verbose_name = "Уведомление в outbox"
-        verbose_name_plural = "Уведомления в outbox"
+        verbose_name = _("Уведомление в outbox")
+        verbose_name_plural = _("Уведомления в outbox")
 
 
 class AuditEvent(models.Model):
@@ -562,5 +563,5 @@ class AuditEvent(models.Model):
             ),
         ]
         ordering = ("-created_at",)
-        verbose_name = "Аудит-событие"
-        verbose_name_plural = "Аудит-события"
+        verbose_name = _("Аудит-событие")
+        verbose_name_plural = _("Аудит-события")

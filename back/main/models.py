@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 from personal.models import Washer, WashStation
 from customer.models import Customer
 
@@ -22,5 +23,5 @@ class Schedule(models.Model):
     completed = models.BooleanField(verbose_name="Завершить", default=False)
 
     class Meta:
-        verbose_name = "Расписание"
-        verbose_name_plural = "Расписание"
+        verbose_name = _("Расписание")
+        verbose_name_plural = _("Расписание")
